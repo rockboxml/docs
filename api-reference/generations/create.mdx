@@ -1,5 +1,5 @@
 ---
-title: "POST /v1/generations — Create a Video Generation"
+title: "Create a Video Generation via POST /v1/generations"
 sidebarTitle: "Create Generation"
 description: "POST /v1/generations — Submit a new AI video generation request. Accepts prompt, style, aspect_ratio, duration, and optional asset inputs."
 ---
@@ -46,7 +46,7 @@ POST https://api.techblazing.com/v1/generations
 </ParamField>
 
 <ParamField body="script" type="string">
-  A narration script for voiceover generation. When provided, TechBlazing synthesizes a voiceover track and mixes it into the final video. The script is rendered in the default voice unless you specify a voice via the `voice_id` parameter.
+  A narration script for voiceover generation. When provided, TechBlazing synthesizes a voiceover track and mixes it into the final video using the default voice.
 </ParamField>
 
 <ParamField body="webhook_url" type="string">

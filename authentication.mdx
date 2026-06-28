@@ -1,7 +1,7 @@
 ---
-title: "Authenticate with the TechBlazing API"
+title: "TechBlazing API Authentication: Keys, Headers, and Scopes"
 sidebarTitle: "Authentication"
-description: "TechBlazing uses API keys for authentication. Learn how to generate your API key, pass it in requests, and handle auth errors."
+description: "TechBlazing uses API keys for authentication. Learn how to create and manage your API key, pass it correctly in requests, and handle auth errors."
 ---
 
 Every request to the TechBlazing API must be authenticated with an API key. You pass your key as a Bearer token in the `Authorization` header. There are no session cookies or OAuth flows — every call is stateless and self-contained, which keeps integration straightforward.
@@ -36,7 +36,7 @@ Include your API key as a `Bearer` token in the `Authorization` header of every 
   ```
 
   ```javascript Node.js
-  import TechBlazing from "techblazing";
+  import TechBlazing from "@techblazing/sdk";
 
   const client = new TechBlazing({
     apiKey: process.env.TECHBLAZING_API_KEY,

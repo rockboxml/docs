@@ -1,5 +1,5 @@
 ---
-title: "Choosing the Right Aspect Ratio for Your Video"
+title: "Choosing the Right Aspect Ratio for Your TechBlazing Video"
 sidebarTitle: "Aspect Ratios"
 description: "Choose the right aspect ratio for your TechBlazing generation. Compare 16:9, 9:16, and 1:1 formats for YouTube, TikTok, Instagram, and more."
 ---
@@ -44,21 +44,34 @@ curl -X POST https://api.techblazing.com/v1/generations \
 ```
 
 ```javascript Node.js
+import TechBlazing from '@techblazing/sdk';
+
+const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
 const generation = await client.generations.create({
   prompt: 'A product rotating on a clean white surface, soft studio lighting',
   style: 'realistic',
   aspect_ratio: '9:16',
   duration: 8,
 });
+
+console.log('Generation ID:', generation.id);
 ```
 
 ```python Python
+import os
+from techblazing import TechBlazing
+
+client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
 generation = client.generations.create(
     prompt='A product rotating on a clean white surface, soft studio lighting',
     style='realistic',
     aspect_ratio='9:16',
     duration=8,
 )
+
+print('Generation ID:', generation.id)
 ```
 
 <Tip>

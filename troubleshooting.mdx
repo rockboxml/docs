@@ -48,7 +48,7 @@ Most TechBlazing API problems fall into a small number of categories — authent
 
     **Implementing exponential back-off:**
 
-    ```javascript Node.js
+    ```javascript
     async function createWithRetry(params, maxRetries = 5) {
       let delay = 1000; // start with 1 second
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -79,7 +79,7 @@ Most TechBlazing API problems fall into a small number of categories — authent
 
     If you decide the job is stalled, cancel it and submit a fresh request:
 
-    ```javascript Node.js
+    ```javascript
     await client.generations.cancel('gen_abc123');
 
     const newGeneration = await client.generations.create({
@@ -96,7 +96,7 @@ Most TechBlazing API problems fall into a small number of categories — authent
 
     **Reading the error field:**
 
-    ```javascript Node.js
+    ```javascript
     const generation = await client.generations.retrieve('gen_abc123');
 
     if (generation.status === 'failed') {
@@ -125,7 +125,7 @@ Most TechBlazing API problems fall into a small number of categories — authent
     - **Download promptly** — As soon as you receive `generation.completed` (via webhook or polling), download the video to your own storage. Do not rely on the TechBlazing URL as a permanent link.
     - **Re-fetch the generation** — If the URL has expired, call `client.generations.retrieve(id)` again. TechBlazing refreshes the signed URL on each retrieval, giving you another 24-hour window to download the file.
 
-    ```javascript Node.js
+    ```javascript
     const generation = await client.generations.retrieve('gen_abc123');
     // output_url is now refreshed — download within 24 hours
     console.log(generation.output_url);

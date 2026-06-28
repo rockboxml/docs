@@ -1,5 +1,5 @@
 ---
-title: "TechBlazing REST API Reference"
+title: "TechBlazing REST API Reference and Getting Started"
 sidebarTitle: "Overview"
 description: "The TechBlazing REST API lets you generate AI videos, manage assets, and configure webhooks programmatically. Base URL, auth, and request format."
 ---
@@ -42,15 +42,14 @@ Query parameters are used for filtering, pagination, and other read-only options
 
 ## Response Format
 
-All responses are returned as JSON. Successful responses for single-resource operations wrap the resource in a top-level `data` key:
+All responses are returned as JSON. Successful responses for single-resource operations return the resource object directly at the top level:
 
 ```json
 {
-  "data": {
-    "id": "gen_01hx4k9z2qfm3vbn7yrc5tej8d",
-    "status": "completed",
-    "created_at": "2024-05-01T12:00:00Z"
-  }
+  "id": "gen_01H9K7XVMZQ3P4R5T6Y8W",
+  "object": "generation",
+  "status": "completed",
+  "created_at": "2024-07-01T14:23:00Z"
 }
 ```
 
@@ -60,7 +59,7 @@ List endpoints return a `data` array alongside pagination metadata:
 {
   "data": [...],
   "has_more": true,
-  "next_cursor": "cur_01hx4k9z2qfm3vbn7yrc5tej8d"
+  "next_cursor": "gen_01H9K2ABCD1234567890X"
 }
 ```
 
@@ -84,7 +83,7 @@ curl --request POST \
   --data '{
     "prompt": "A cinematic drone shot of a mountain range at golden hour",
     "duration": 10,
-    "resolution": "1080p"
+    "quality": "hd"
   }'
 ```
 
@@ -98,12 +97,12 @@ const response = await fetch("https://api.techblazing.com/v1/generations", {
   body: JSON.stringify({
     prompt: "A cinematic drone shot of a mountain range at golden hour",
     duration: 10,
-    resolution: "1080p",
+    quality: "hd",
   }),
 });
 
-const { data } = await response.json();
-console.log(data.id); // gen_01hx4k9z2qfm3vbn7yrc5tej8d
+const generation = await response.json();
+console.log(generation.id); // gen_01H9K7XVMZQ3P4R5T6Y8W
 ```
 
 ```python Python
@@ -118,12 +117,12 @@ response = httpx.post(
     json={
         "prompt": "A cinematic drone shot of a mountain range at golden hour",
         "duration": 10,
-        "resolution": "1080p",
+        "quality": "hd",
     },
 )
 
-data = response.json()["data"]
-print(data["id"])  # gen_01hx4k9z2qfm3vbn7yrc5tej8d
+generation = response.json()
+print(generation["id"])  # gen_01H9K7XVMZQ3P4R5T6Y8W
 ```
 
 </CodeGroup>
@@ -132,16 +131,15 @@ print(data["id"])  # gen_01hx4k9z2qfm3vbn7yrc5tej8d
 
 ```json
 {
-  "data": {
-    "id": "gen_01hx4k9z2qfm3vbn7yrc5tej8d",
-    "status": "queued",
-    "prompt": "A cinematic drone shot of a mountain range at golden hour",
-    "duration": 10,
-    "resolution": "1080p",
-    "created_at": "2024-05-01T12:00:00Z",
-    "completed_at": null,
-    "video_url": null
-  }
+  "id": "gen_01H9K7XVMZQ3P4R5T6Y8W",
+  "object": "generation",
+  "status": "queued",
+  "prompt": "A cinematic drone shot of a mountain range at golden hour",
+  "duration": 10,
+  "quality": "hd",
+  "output_url": null,
+  "created_at": "2024-05-01T12:00:00Z",
+  "completed_at": null
 }
 ```
 

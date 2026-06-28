@@ -1,5 +1,5 @@
 ---
-title: "Animate Images into Video with TechBlazing"
+title: "Animate Any Still Image into Video with TechBlazing"
 sidebarTitle: "Image to Video"
 description: "Upload a reference image to TechBlazing and generate a video that animates or extends it. Includes upload, generation, and retrieval examples."
 ---
@@ -55,8 +55,20 @@ Image-to-video lets you bring a still image to life by using it as the visual fo
     </CodeGroup>
   </Step>
 
+  <Step title="Craft a motion prompt to guide the animation">
+    The `prompt` field doubles as your motion direction when using an input image. Use it to describe how you want the scene to move — camera behavior, subject motion, atmospheric effects, and pacing all respond to prompt guidance. Write your motion prompt before submitting the generation request so you can reference it in the next step.
+
+    Motion prompt tips:
+    - **Camera movement:** `slow push-in`, `gentle orbit`, `subtle zoom out`, `pan left`
+    - **Subject motion:** `hair blowing in the wind`, `eyes slowly blinking`, `leaves rustling`
+    - **Atmosphere:** `light rays shifting`, `steam rising`, `bokeh particles drifting`
+    - **Pacing:** `slow motion`, `real-time`, `time lapse`
+
+    Example: `"Camera slowly orbits the subject, warm afternoon light shifts softly, gentle lens flare, cinematic and serene"`
+  </Step>
+
   <Step title="Use the asset ID in your generation request">
-    Pass the `id` returned from the asset upload as `input_asset_id` in your generation request. TechBlazing will use your image as the visual reference when generating the video.
+    Pass the `id` returned from the asset upload as `input_asset_id` in your generation request, and include the motion prompt you crafted in the previous step. TechBlazing will use your image as the visual reference and the prompt to direct movement and atmosphere.
 
     <CodeGroup>
       ```bash curl
@@ -105,18 +117,6 @@ Image-to-video lets you bring a still image to life by using it as the visual fo
       print('Generation ID:', generation.id)
       ```
     </CodeGroup>
-  </Step>
-
-  <Step title="Add a motion prompt to guide the animation">
-    The `prompt` field doubles as your motion direction when using an input image. Use it to describe how you want the scene to move — camera behavior, subject motion, atmospheric effects, and pacing all respond to prompt guidance.
-
-    Motion prompt tips:
-    - **Camera movement:** `slow push-in`, `gentle orbit`, `subtle zoom out`, `pan left`
-    - **Subject motion:** `hair blowing in the wind`, `eyes slowly blinking`, `leaves rustling`
-    - **Atmosphere:** `light rays shifting`, `steam rising`, `bokeh particles drifting`
-    - **Pacing:** `slow motion`, `real-time`, `time lapse`
-
-    Example: `"Camera slowly orbits the subject, warm afternoon light shifts softly, gentle lens flare, cinematic and serene"`
   </Step>
 
   <Step title="Poll and retrieve the output">

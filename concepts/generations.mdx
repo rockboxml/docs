@@ -1,5 +1,5 @@
 ---
-title: "Understanding Generations in TechBlazing"
+title: "How TechBlazing Generation Objects and Statuses Work"
 sidebarTitle: "Generations"
 description: "A generation is the core resource in TechBlazing — learn about generation lifecycle, status values, and how to work with generation objects."
 ---
@@ -34,6 +34,14 @@ A **generation** is the fundamental resource in TechBlazing. Every time you requ
 
 <ResponseField name="aspect_ratio" type="string" required>
   The aspect ratio of the output video. One of `16:9`, `9:16`, or `1:1`.
+</ResponseField>
+
+<ResponseField name="quality" type="string" required>
+  The quality tier used for rendering. One of `standard` or `hd`. Standard renders at 24 fps; HD renders at 30 fps with an enhanced detail pass.
+</ResponseField>
+
+<ResponseField name="input_asset_id" type="string">
+  The ID of the reference image asset uploaded via the Assets API, if a reference image was provided with this generation request. `null` when no reference image was used.
 </ResponseField>
 
 <ResponseField name="output_url" type="string">

@@ -49,17 +49,29 @@ Every webhook request is an HTTP POST with a JSON body. The payload has the foll
 
 ## Verifying Webhook Signatures
 
-TechBlazing signs every webhook request with HMAC-SHA256 using your Webhook Secret. The signature is included in the `X-TechBlazing-Signature` request header. You should always verify this signature before processing a payload to ensure the request genuinely came from TechBlazing and has not been tampered with.
+TechBlazing signs every webhook request with HMAC-SHA256 using your Webhook Secret. The signature is included in the `TechBlazing-Signature` request header in the format `t=<timestamp>,v1=<hex>`, where `t` is a Unix timestamp and `v1` is the HMAC-SHA256 hex digest of `<timestamp>.<raw_body>`. You should always verify this signature before processing a payload to ensure the request genuinely came from TechBlazing and has not been tampered with.
 
 <CodeGroup>
 
 ```javascript Node.js
 import crypto from 'crypto';
 
-function verifyWebhookSignature(rawBody, signature, secret) {
+function verifyWebhookSignature(rawBody, signatureHeader, secret) {
+  // Header format: "t=<timestamp>,v1=<hex>"
+  const parts = Object.fromEntries(
+    signatureHeader.split(',').map((part) => part.split('='))
+  );
+  const timestamp = parts['t'];
+  const signature = parts['v1'];
+
+  if (!timestamp || !signature) {
+    return false;
+  }
+
+  const signedPayload = `${timestamp}.${rawBody}`;
   const expectedSignature = crypto
     .createHmac('sha256', secret)
-    .update(rawBody)
+    .update(signedPayload)
     .digest('hex');
 
   // Use timingSafeEqual to prevent timing attacks
@@ -75,8 +87,8 @@ function verifyWebhookSignature(rawBody, signature, secret) {
 
 // Express.js example — use express.raw() to get the raw body
 app.post('/webhooks/techblazing', express.raw({ type: 'application/json' }), (req, res) => {
-  const signature = req.headers['x-techblazing-signature'];
-  const isValid = verifyWebhookSignature(req.body, signature, process.env.TECHBLAZING_WEBHOOK_SECRET);
+  const signatureHeader = req.headers['techblazing-signature'];
+  const isValid = verifyWebhookSignature(req.body, signatureHeader, process.env.TECHBLAZING_WEBHOOK_SECRET);
 
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature' });
@@ -93,10 +105,19 @@ import hashlib
 import hmac
 import os
 
-def verify_webhook_signature(raw_body: bytes, signature: str, secret: str) -> bool:
+def verify_webhook_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    # Header format: "t=<timestamp>,v1=<hex>"
+    parts = dict(part.split('=', 1) for part in signature_header.split(','))
+    timestamp = parts.get('t')
+    signature = parts.get('v1')
+
+    if not timestamp or not signature:
+        return False
+
+    signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
     expected = hmac.new(
         secret.encode('utf-8'),
-        raw_body,
+        signed_payload.encode('utf-8'),
         hashlib.sha256,
     ).hexdigest()
 
@@ -111,10 +132,10 @@ app = Flask(__name__)
 
 @app.route('/webhooks/techblazing', methods=['POST'])
 def handle_webhook():
-    signature = request.headers.get('X-TechBlazing-Signature', '')
+    signature_header = request.headers.get('TechBlazing-Signature', '')
     is_valid = verify_webhook_signature(
         request.data,
-        signature,
+        signature_header,
         os.environ['TECHBLAZING_WEBHOOK_SECRET'],
     )
 
@@ -138,8 +159,8 @@ After verifying the signature, inspect the `event` field to route the payload to
 
 ```javascript Node.js
 app.post('/webhooks/techblazing', express.raw({ type: 'application/json' }), (req, res) => {
-  const signature = req.headers['x-techblazing-signature'];
-  const isValid = verifyWebhookSignature(req.body, signature, process.env.TECHBLAZING_WEBHOOK_SECRET);
+  const signatureHeader = req.headers['techblazing-signature'];
+  const isValid = verifyWebhookSignature(req.body, signatureHeader, process.env.TECHBLAZING_WEBHOOK_SECRET);
 
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature' });
@@ -171,10 +192,10 @@ app.post('/webhooks/techblazing', express.raw({ type: 'application/json' }), (re
 ```python Python
 @app.route('/webhooks/techblazing', methods=['POST'])
 def handle_webhook():
-    signature = request.headers.get('X-TechBlazing-Signature', '')
+    signature_header = request.headers.get('TechBlazing-Signature', '')
     is_valid = verify_webhook_signature(
         request.data,
-        signature,
+        signature_header,
         os.environ['TECHBLAZING_WEBHOOK_SECRET'],
     )
 
