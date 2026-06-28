@@ -1,0 +1,57 @@
+---
+title: "TechBlazing: AI Video Generation Platform"
+sidebarTitle: "Introduction"
+description: "TechBlazing is an AI video generation platform that converts text prompts, images, and scripts into polished MP4 videos via REST API."
+---
+
+TechBlazing is an AI video generation platform that transforms text prompts, images, and scripts into polished, production-ready MP4 videos. Instead of spending hours in a video editor or coordinating with a production team, you describe what you want and TechBlazing handles the rest — from scene composition and motion to pacing and style — in under two minutes.
+
+## What TechBlazing solves
+
+Creating professional video content is expensive, time-consuming, and hard to scale. Traditional workflows require writers, designers, editors, and video producers working across multiple tools. TechBlazing collapses that entire pipeline into a single API call, making high-quality video creation accessible to any team — regardless of size or budget.
+
+With TechBlazing you can:
+
+- **Scale video production** without hiring a production team.
+- **Automate repetitive video creation** for marketing campaigns, product demos, and social content.
+- **Iterate quickly** by regenerating videos from updated prompts or scripts.
+- **Integrate video generation** directly into your existing applications and workflows.
+
+## Key capabilities
+
+**Text to video** — Describe a scene, concept, or story in plain language and receive a fully rendered MP4 video. TechBlazing interprets your prompt, selects appropriate visuals and motion, and produces a coherent clip ready for use.
+
+**Image to video** — Upload a still image and animate it into a dynamic video. TechBlazing adds natural motion, depth, and scene transitions while staying true to the source image.
+
+**Script to video** — Provide a structured script with scene descriptions or dialogue and TechBlazing produces a narrated, multi-scene video, complete with pacing and visual transitions.
+
+**Style controls** — Choose from a range of visual styles (cinematic, animated, documentary, and more), set the aspect ratio (16:9, 9:16, or 1:1), and control video duration to match your target platform.
+
+## Who TechBlazing is for
+
+- **Developers** building content pipelines, SaaS products, or automation workflows that require programmatic video generation.
+- **Content creators** who want to produce large volumes of short-form video for social media without manual editing.
+- **Marketing teams** that need on-brand, campaign-ready videos at scale — product explainers, ads, and social clips — without long production cycles.
+
+## How it works
+
+TechBlazing follows a simple three-stage flow:
+
+1. **Prompt** — You send a request to the API with your text prompt, image, or script along with any style and format options.
+2. **Generate** — TechBlazing queues and processes your generation asynchronously. You receive a generation ID immediately and poll for status updates.
+3. **Download** — Once the generation status is `completed`, you fetch the `output_url` from the response and download your finished MP4 video.
+
+Every generation is non-blocking, so your application stays responsive while video processing runs in the background. You can also register a webhook URL to receive a notification the moment your video is ready.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Follow the step-by-step guide to create your first AI-generated video in under 5 minutes.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    Dive into the full API reference to explore all endpoints, parameters, and response formats.
+  </Card>
+</CardGroup>
+
+<Note>
+  The TechBlazing free tier includes **10 generations per month** at no cost. Free-tier generations support all three generation modes and produce videos up to 15 seconds long. Upgrade to a paid plan for higher monthly limits, longer video durations, and priority processing.
+</Note>

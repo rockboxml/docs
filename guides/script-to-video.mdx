@@ -1,0 +1,165 @@
+---
+title: "Turn Scripts into AI Videos with TechBlazing"
+sidebarTitle: "Script to Video"
+description: "Submit a narration script to TechBlazing to generate a video with synchronized AI voiceover and matching visuals."
+---
+
+Script-to-video is TechBlazing's most automated generation mode. You submit a narration script, and the platform handles everything else — AI voiceover synthesis, visual scene generation, and audio-visual synchronization. Each paragraph in your script becomes a scene, with visuals generated to match the narrative content and voice timing.
+
+## Script format
+
+TechBlazing reads your script as plain text narration with the following conventions:
+
+- **One paragraph per scene** — each paragraph generates a distinct visual scene
+- **Line breaks as scene breaks** — a blank line between paragraphs signals a new scene transition
+- **Write for the ear** — scripts are read aloud by the AI, so favor natural spoken rhythm over formal written language
+- **Avoid stage directions** — the model generates visuals automatically from the narrative content; you don't need to describe camera angles in the script itself (use the `prompt` field for visual direction)
+
+<Steps>
+  <Step title="Write your script">
+    Write your narration as plain text. Aim for clear, spoken-language sentences. Each paragraph should be a self-contained idea that translates naturally into a visual moment.
+
+    ```text
+    Every morning, millions of people start their day with a single ritual.
+
+    They reach for their phone, check their messages, and begin responding — before they've even had breakfast.
+
+    TechBlazing helps your brand show up in those first moments. With AI-generated video that's fast, affordable, and endlessly customizable.
+
+    Start creating today. Your audience is already watching.
+    ```
+  </Step>
+
+  <Step title="Configure voiceover settings">
+    Include voiceover preferences directly in your API request alongside the script. TechBlazing's text-to-speech engine supports multiple voices and languages.
+
+    **Voice options:**
+    | Parameter | Values |
+    |---|---|
+    | `voice` | `male`, `female`, `neutral` |
+    | `language` | `en`, `es`, `fr`, `de`, `pt` |
+
+    These parameters nest inside the `script` object in your request body (see the next step for the full request shape).
+  </Step>
+
+  <Step title="Submit via API">
+    Pass your script content and voiceover settings inside the `script` parameter. You can still include a `prompt` to guide the overall visual style and mood of the generated scenes.
+
+    <CodeGroup>
+      ```bash curl
+      curl -X POST https://api.techblazing.com/v1/generations \
+        -H "Authorization: Bearer $TECHBLAZING_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "prompt": "Modern, clean visuals, warm lighting, professional and aspirational tone",
+          "style": "cinematic",
+          "aspect_ratio": "16:9",
+          "duration": 30,
+          "script": {
+            "content": "Every morning, millions of people start their day with a single ritual.\n\nThey reach for their phone, check their messages, and begin responding — before they have even had breakfast.\n\nTechBlazing helps your brand show up in those first moments. With AI-generated video that is fast, affordable, and endlessly customizable.\n\nStart creating today. Your audience is already watching.",
+            "voice": "female",
+            "language": "en"
+          }
+        }'
+      ```
+
+      ```javascript Node.js
+      import TechBlazing from '@techblazing/sdk';
+
+      const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+      const generation = await client.generations.create({
+        prompt: 'Modern, clean visuals, warm lighting, professional and aspirational tone',
+        style: 'cinematic',
+        aspect_ratio: '16:9',
+        duration: 30,
+        script: {
+          content: `Every morning, millions of people start their day with a single ritual.
+
+      They reach for their phone, check their messages, and begin responding — before they've even had breakfast.
+
+      TechBlazing helps your brand show up in those first moments. With AI-generated video that's fast, affordable, and endlessly customizable.
+
+      Start creating today. Your audience is already watching.`,
+          voice: 'female',
+          language: 'en',
+        },
+      });
+
+      console.log('Generation ID:', generation.id);
+      ```
+
+      ```python Python
+      import os
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+      script_content = """Every morning, millions of people start their day with a single ritual.
+
+      They reach for their phone, check their messages, and begin responding — before they've even had breakfast.
+
+      TechBlazing helps your brand show up in those first moments. With AI-generated video that's fast, affordable, and endlessly customizable.
+
+      Start creating today. Your audience is already watching."""
+
+      generation = client.generations.create(
+          prompt='Modern, clean visuals, warm lighting, professional and aspirational tone',
+          style='cinematic',
+          aspect_ratio='16:9',
+          duration=30,
+          script={
+              'content': script_content,
+              'voice': 'female',
+              'language': 'en',
+          },
+      )
+
+      print('Generation ID:', generation.id)
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Poll and download the output">
+    Script-to-video generations take longer than text-only or image-to-video jobs because TechBlazing synthesizes voiceover audio before compositing the final video. Allow extra time for longer scripts.
+
+    Poll `GET /v1/generations/{id}` until `status` is `completed`, then download your video from `output_url`.
+
+    ```python Python
+    import os
+    import time
+    from techblazing import TechBlazing
+
+    client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+    def wait_for_completion(generation_id: str):
+        while True:
+            generation = client.generations.retrieve(generation_id)
+
+            if generation.status == 'completed':
+                print('Output URL:', generation.output_url)
+                return generation
+
+            if generation.status == 'failed':
+                raise RuntimeError(f'Generation failed: {generation.error}')
+
+            print(f'Status: {generation.status} — checking again in 5s')
+            time.sleep(5)
+
+    wait_for_completion('gen_abc123')
+    ```
+  </Step>
+</Steps>
+
+## Voiceover sync tips
+
+Getting clean voiceover sync comes down to sentence structure. Follow these guidelines for best results:
+
+- **Keep sentences under 25 words.** Longer sentences cause the AI voice to rush, which can push visual transitions out of sync.
+- **Use natural pauses.** End sentences with punctuation (`.`, `!`, `?`). The TTS engine uses punctuation to insert natural breath and pacing.
+- **Avoid abbreviations and acronyms.** Spell out numbers and initialisms — write "twenty-five percent" instead of "25%", and "artificial intelligence" instead of "AI" if you want the full phrase spoken.
+- **Match duration to word count.** A rough guide: 130–150 words of narration ≈ 60 seconds of voiceover. Calibrate your `duration` parameter accordingly.
+
+<Note>
+  TechBlazing's AI voiceover engine currently supports **English (`en`), Spanish (`es`), French (`fr`), German (`de`), and Portuguese (`pt`)**. Additional languages are on the roadmap. For unsupported languages, use text-to-video without the `script` parameter and add your own voiceover in post-production.
+</Note>

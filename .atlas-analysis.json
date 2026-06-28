@@ -1,23 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "TechBlazing",
+  "projectType": "saas",
+  "projectName": "TechBlazing",
+  "projectDescription": "TechBlazing is an AI-powered video generation platform that lets developers and creators produce polished videos from text, images, and scripts via API or dashboard.",
   "theme": "luma",
-  "colors": {
-    "primary": "#f4340d",
-    "light": "#063468"
-  },
-  "logo": {
-    "light": "https://media.brand.dev/f28df392-3f34-4270-817b-9501de6d62d2.png",
-    "dark": "https://media.brand.dev/f28df392-3f34-4270-817b-9501de6d62d2.png"
-  },
-  "favicon": "https://media.brand.dev/adf20e80-406b-4389-9559-a225063fd4db.png",
-  "navbar": {
-    "primary": {
-      "type": "button",
-      "label": "Get API Key",
-      "href": "https://techblazing.com/signup"
-    }
-  },
+  "primaryColor": "#f4340d",
+  "lightColor": "#063468",
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -107,9 +95,27 @@
       }
     ]
   },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/techblazing"
-    }
-  }
+  "keyFeatures": [
+    "Text-to-video generation from natural language prompts",
+    "Image-to-video animation from uploaded reference photos",
+    "Script-to-video with auto-generated voiceover and visuals",
+    "Multiple output formats and aspect ratios (16:9, 9:16, 1:1)",
+    "REST API and official SDKs for Node.js and Python",
+    "Webhook notifications for async generation status",
+    "Asset management for uploading reference images and media",
+    "Style controls: realistic, cinematic, animated, illustrated"
+  ],
+  "publicApiSurface": [
+    "POST /v1/generations — create a video generation",
+    "GET /v1/generations/{id} — retrieve a generation",
+    "GET /v1/generations — list generations",
+    "POST /v1/generations/{id}/cancel — cancel a generation",
+    "POST /v1/assets — upload an asset",
+    "GET /v1/assets/{id} — retrieve an asset",
+    "DELETE /v1/assets/{id} — delete an asset",
+    "Webhook: generation.completed",
+    "Webhook: generation.failed",
+    "SDK: TechBlazing Node.js client",
+    "SDK: TechBlazing Python client"
+  ]
 }

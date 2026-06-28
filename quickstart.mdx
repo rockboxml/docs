@@ -1,47 +1,147 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with TechBlazing Video API"
+sidebarTitle: "Quickstart"
+description: "Create your first AI-generated video with TechBlazing in under 5 minutes. Install the SDK, authenticate, and generate a video from a text prompt."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide walks you through everything you need to create your first AI-generated video with TechBlazing. By the end, you'll have a working integration that submits a text prompt, waits for the generation to complete, and downloads the finished MP4.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Create your account">
+    Sign up for a free TechBlazing account at [techblazing.com/signup](https://techblazing.com/signup). No credit card is required. Your free account includes 10 generations per month so you can start building right away.
+  </Step>
+
+  <Step title="Get your API key">
+    After signing in, open the dashboard and navigate to **Settings → API Keys**. Click **Create Key**, give it a descriptive name (for example, `dev-local`), and copy the generated key. Store it securely — TechBlazing will not display the full key again after you close the dialog.
+
+    Set the key as an environment variable in your local shell so you don't have to hard-code it in your project:
 
     ```bash
-    npm install your-package
+    export TECHBLAZING_API_KEY="your_api_key_here"
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Install the SDK">
+    TechBlazing provides official SDKs for Node.js and Python. Install the one that matches your stack:
+
+    <CodeGroup>
+      ```bash npm
+      npm install techblazing
+      ```
+
+      ```bash pip
+      pip install techblazing
+      ```
+    </CodeGroup>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Create your first generation">
+    Send a generation request with a text prompt. The API responds immediately with a generation object containing an `id` and a `status` of `queued`.
+
+    <CodeGroup>
+      ```javascript Node.js
+      import TechBlazing from "techblazing";
+
+      const client = new TechBlazing({
+        apiKey: process.env.TECHBLAZING_API_KEY,
+      });
+
+      const generation = await client.generations.create({
+        mode: "text-to-video",
+        prompt: "A golden retriever runs along a sunlit beach at sunset, slow motion, cinematic",
+        aspect_ratio: "16:9",
+        duration: 10,
+      });
+
+      console.log("Generation ID:", generation.id);
+      console.log("Status:", generation.status);
+      ```
+
+      ```python Python
+      import os
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ["TECHBLAZING_API_KEY"])
+
+      generation = client.generations.create(
+          mode="text-to-video",
+          prompt="A golden retriever runs along a sunlit beach at sunset, slow motion, cinematic",
+          aspect_ratio="16:9",
+          duration=10,
+      )
+
+      print("Generation ID:", generation.id)
+      print("Status:", generation.status)
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Poll for completion and download the video">
+    Generations are processed asynchronously. Poll `GET /v1/generations/{id}` until the `status` field becomes `completed`, then download the video from the `output_url` in the response.
+
+    <CodeGroup>
+      ```javascript Node.js
+      import fs from "fs";
+      import https from "https";
+
+      async function waitForCompletion(client, generationId) {
+        while (true) {
+          const generation = await client.generations.get(generationId);
+
+          if (generation.status === "completed") {
+            console.log("Video ready:", generation.output_url);
+            return generation.output_url;
+          }
+
+          if (generation.status === "failed") {
+            throw new Error(`Generation failed: ${generation.error}`);
+          }
+
+          console.log("Status:", generation.status, "— checking again in 5 seconds…");
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+
+      const outputUrl = await waitForCompletion(client, generation.id);
+
+      // Download the MP4
+      const file = fs.createWriteStream("output.mp4");
+      https.get(outputUrl, (response) => response.pipe(file));
+      console.log("Saved to output.mp4");
+      ```
+
+      ```python Python
+      import time
+      import urllib.request
+
+      def wait_for_completion(client, generation_id):
+          while True:
+              generation = client.generations.get(generation_id)
+
+              if generation.status == "completed":
+                  print("Video ready:", generation.output_url)
+                  return generation.output_url
+
+              if generation.status == "failed":
+                  raise RuntimeError(f"Generation failed: {generation.error}")
+
+              print(f"Status: {generation.status} — checking again in 5 seconds…")
+              time.sleep(5)
+
+      output_url = wait_for_completion(client, generation.id)
+
+      # Download the MP4
+      urllib.request.urlretrieve(output_url, "output.mp4")
+      print("Saved to output.mp4")
+      ```
+    </CodeGroup>
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+<Note>
+  Most generations complete in **30 to 90 seconds** depending on video length, selected style, and current queue depth. Priority processing is available on paid plans.
+</Note>
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+<Tip>
+  Instead of polling in a loop, register a **webhook URL** when you create a generation. TechBlazing sends a `POST` request to your endpoint the moment the video is ready, eliminating the need for repeated status checks. See the [Webhooks guide](/sdks/webhooks) to learn how to set this up.
 </Tip>

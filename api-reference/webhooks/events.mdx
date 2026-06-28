@@ -1,0 +1,191 @@
+---
+title: "TechBlazing Webhook Event Types Reference"
+sidebarTitle: "Webhook Events"
+description: "Reference for all TechBlazing webhook event types including generation.completed and generation.failed with full payload schemas."
+---
+
+Every webhook delivery from TechBlazing uses the same outer envelope structure, with an event-specific `data` object nested inside. This page documents the envelope fields, then describes each event type in detail so you know exactly what to expect in your handler.
+
+## Event envelope
+
+All webhook payloads share the following top-level fields:
+
+<ResponseField name="event" type="string">
+  The event type that triggered this delivery. For example, `"generation.completed"` or `"generation.failed"`. Use this field to route the payload to the correct handler in your code.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  A unique identifier for this event delivery, prefixed with `evt_`. Use this ID to deduplicate events — TechBlazing may deliver the same event more than once in rare cases (see the note on idempotency below).
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  A Generation object containing the full state of the generation at the time the event fired. The specific fields present depend on the event type.
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  ISO 8601 timestamp of when the event was created on TechBlazing's side. This matches the `TechBlazing-Signature` header's `t` value when expressed as a Unix timestamp.
+</ResponseField>
+
+---
+
+## generation.completed
+
+This event fires when a video generation finishes successfully and the output is ready to download. The `data.output_url` field contains the CDN URL of the rendered video.
+
+```json Example payload
+{
+  "event": "generation.completed",
+  "id": "evt_01H9K7XVMZQ3P4R5T6Y8W",
+  "data": {
+    "id": "gen_01H9K7XVMZQ3P4R5T6Y8W",
+    "object": "generation",
+    "status": "completed",
+    "prompt": "A slow cinematic pan across a product on a white studio background",
+    "output_url": "https://cdn.techblazing.com/outputs/gen_01H9K7XVMZQ3P4R5T6Y8W.mp4",
+    "created_at": "2024-07-01T14:23:00Z",
+    "completed_at": "2024-07-01T14:24:12Z"
+  },
+  "timestamp": "2024-07-01T14:24:12Z"
+}
+```
+
+**Key fields to use from `data`:**
+
+| Field          | Description                                                         |
+| -------------- | ------------------------------------------------------------------- |
+| `id`           | The generation ID — use this to correlate with your own records.    |
+| `output_url`   | Direct CDN link to the completed video file. Ready to stream or download immediately. |
+| `completed_at` | When rendering finished. Subtract `created_at` to measure render time. |
+
+---
+
+## generation.failed
+
+This event fires when a generation cannot be completed due to an error — for example, if the prompt was rejected by the content policy, the reference asset was unreadable, or an internal processing error occurred. Inspect the `data.error` field for the reason.
+
+```json Example payload
+{
+  "event": "generation.failed",
+  "id": "evt_01H9K7XVMZQ3P4R5T6Y8W2",
+  "data": {
+    "id": "gen_01H9K7XVMZQ3P4R5T6Y8X",
+    "object": "generation",
+    "status": "failed",
+    "prompt": "A slow cinematic pan across a product on a white studio background",
+    "output_url": null,
+    "error": {
+      "code": "content_policy_violation",
+      "message": "The prompt was flagged by our content moderation system."
+    },
+    "created_at": "2024-07-01T14:25:00Z",
+    "completed_at": null
+  },
+  "timestamp": "2024-07-01T14:25:04Z"
+}
+```
+
+**The `data.error` object:**
+
+| Field     | Description                                                                 |
+| --------- | --------------------------------------------------------------------------- |
+| `code`    | A machine-readable error code. Use this for programmatic error handling.    |
+| `message` | A human-readable explanation of what went wrong. Suitable for logging.      |
+
+---
+
+## All event types
+
+| Event type             | Description                                    | Trigger condition                                     |
+| ---------------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| `generation.completed` | A video generation finished successfully.      | Generation status transitions to `completed`.         |
+| `generation.failed`    | A video generation encountered a fatal error.  | Generation status transitions to `failed`.            |
+
+---
+
+## Handling events in your application
+
+The example below shows a minimal Express.js webhook handler that verifies the signature (see [Webhook Setup](/api-reference/webhooks/overview#verifying-signatures)) and routes each event type to a dedicated function.
+
+```javascript Express.js handler
+import express from "express";
+import crypto from "crypto";
+
+const app = express();
+const WEBHOOK_SECRET = process.env.TECHBLAZING_WEBHOOK_SECRET;
+
+// Use raw body parser so we can verify the signature
+app.post(
+  "/webhooks/techblazing",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signatureHeader = req.headers["techblazing-signature"];
+
+    // 1. Verify the signature before doing anything else
+    try {
+      verifySignature(req.body, signatureHeader, WEBHOOK_SECRET);
+    } catch (err) {
+      console.error("Signature verification failed:", err.message);
+      return res.sendStatus(400);
+    }
+
+    const payload = JSON.parse(req.body.toString("utf8"));
+
+    // 2. Deduplicate using the event ID (store seen IDs in your DB)
+    if (alreadyProcessed(payload.id)) {
+      return res.sendStatus(200); // Acknowledge without reprocessing
+    }
+
+    // 3. Route to the appropriate handler
+    switch (payload.event) {
+      case "generation.completed":
+        handleGenerationCompleted(payload.data);
+        break;
+      case "generation.failed":
+        handleGenerationFailed(payload.data);
+        break;
+      default:
+        console.warn("Unhandled event type:", payload.event);
+    }
+
+    // 4. Always respond 2xx promptly
+    res.sendStatus(200);
+  }
+);
+
+function handleGenerationCompleted(generation) {
+  console.log(`Generation ${generation.id} complete. Video: ${generation.output_url}`);
+  // e.g. update your database, notify the end user, trigger downstream processing
+}
+
+function handleGenerationFailed(generation) {
+  console.error(
+    `Generation ${generation.id} failed: [${generation.error.code}] ${generation.error.message}`
+  );
+  // e.g. surface the error to the user, schedule a retry with a revised prompt
+}
+
+function verifySignature(rawBody, signatureHeader, secret) {
+  const parts = Object.fromEntries(
+    signatureHeader.split(",").map((p) => p.split("="))
+  );
+  const signedPayload = `${parts["t"]}.${rawBody}`;
+  const computed = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload, "utf8")
+    .digest("hex");
+  if (!crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(parts["v1"]))) {
+    throw new Error("Signature mismatch");
+  }
+}
+
+function alreadyProcessed(eventId) {
+  // Replace with a real check against your persistent store
+  return false;
+}
+
+app.listen(3000, () => console.log("Webhook listener running on port 3000"));
+```
+
+<Note>
+  TechBlazing guarantees **at-least-once delivery**, which means the same event may occasionally be sent more than once (for example, if your server returned a `2xx` but the acknowledgement was lost in transit). Always use `event.id` to deduplicate incoming events against a persistent store before taking side-effectful actions such as sending emails or updating database records.
+</Note>

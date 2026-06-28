@@ -1,0 +1,82 @@
+---
+title: "Video Output Formats and Quality Settings"
+sidebarTitle: "Output Formats"
+description: "TechBlazing outputs MP4 videos. Learn about supported aspect ratios, resolution tiers, duration limits, and how to choose the right settings."
+---
+
+Every video TechBlazing generates is delivered as an MP4 file encoded with the H.264 codec — the most widely supported video format across web browsers, mobile devices, social platforms, and editing tools. Before you submit a generation request, it pays to know which aspect ratio, duration, style, and quality tier fit your use case, since these settings affect both the visual result and your credit consumption.
+
+## File Format
+
+All TechBlazing output is:
+
+- **Container:** MP4
+- **Video codec:** H.264 (AVC)
+- **Audio codec:** AAC (when voiceover is included)
+- **Frame rate:** 24 fps (standard) / 30 fps (HD)
+
+The resulting files are immediately playable in browsers via an HTML `<video>` tag, uploadable to social platforms, and compatible with all major video editing applications without conversion.
+
+## Aspect Ratios
+
+Choose the aspect ratio that matches your delivery target. Setting the correct ratio at generation time is important — TechBlazing does not crop or pad your video after rendering.
+
+| Ratio | Use Case | Resolution |
+|---|---|---|
+| `16:9` | YouTube, presentations, landscape web embeds | 1920 × 1080 px |
+| `9:16` | TikTok, Instagram Reels, YouTube Shorts, Stories | 1080 × 1920 px |
+| `1:1` | Instagram feed, LinkedIn posts, square displays | 1080 × 1080 px |
+
+Pass the ratio as a string in your generation request:
+
+```json
+{
+  "aspect_ratio": "16:9"
+}
+```
+
+## Duration Limits
+
+| Setting | Value |
+|---|---|
+| Minimum duration | 5 seconds |
+| Maximum duration | 60 seconds |
+| Default duration | 15 seconds |
+
+Longer videos consume proportionally more credits. If your content can fit in a shorter clip, keeping the duration tight reduces cost and generation time.
+
+## Style Options
+
+The `style` parameter controls the overall visual aesthetic applied during rendering. Each style uses a different set of model weights, color grading curves, and motion design rules.
+
+| Style | Description | Best For |
+|---|---|---|
+| `realistic` | Photographic fidelity with natural lighting and textures | Product showcases, travel content, documentary-style clips |
+| `cinematic` | Film-like color grading, dramatic depth of field, wide dynamic range | Brand films, trailers, story-driven content |
+| `animated` | Fluid motion, vibrant colors, stylized character movement | Social media content, explainers, entertainment |
+| `illustrated` | Painterly or graphic-novel aesthetics, visible brushwork or line art | Educational content, editorial visuals, artistic projects |
+
+Style is set per generation and cannot be changed after submission. If you want to compare styles for the same prompt, submit separate generation requests with different `style` values.
+
+## Quality Tiers
+
+TechBlazing offers two quality tiers that trade off rendering resolution and detail against credit cost.
+
+| Tier | Resolution | Frame Rate | Credits per 15s | Best For |
+|---|---|---|---|---|
+| `standard` | 1080p (at chosen ratio) | 24 fps | 10 credits | Prototyping, drafts, social stories |
+| `hd` | 1080p (at chosen ratio) | 30 fps, enhanced detail pass | 25 credits | Final delivery, paid campaigns, hero content |
+
+Pass the quality tier in your generation request:
+
+```json
+{
+  "quality": "hd"
+}
+```
+
+Credit costs scale linearly with duration. A 30-second HD generation costs 50 credits; a 60-second HD generation costs 100 credits.
+
+<Tip>
+  Before committing credits to a long or complex generation, **test with a short `1:1` clip at `standard` quality**. Square clips at standard tier use the fewest credits and render fastest, so you can quickly validate that your prompt, style, and image inputs produce the look you want. Once you are happy with the result, resubmit at your target aspect ratio, duration, and quality tier.
+</Tip>

@@ -1,0 +1,184 @@
+---
+title: "Generate Videos from Text Prompts with TechBlazing"
+sidebarTitle: "Text to Video"
+description: "Use TechBlazing's text-to-video feature to create AI-generated videos from natural language prompts. Step-by-step guide with code examples."
+---
+
+Text-to-video lets you turn written descriptions into fully rendered AI-generated videos — no footage, no camera, no editing required. Whether you're building product demos, explainer videos, or short-form social content, TechBlazing's generation pipeline takes your prompt from words to video in minutes.
+
+<Steps>
+  <Step title="Write your prompt">
+    Your prompt is the creative brief for the AI. Describe the scene you want — what's happening, where it's set, the mood you're after, and the visual style. The more grounded and specific your description, the more predictable and polished the output will be.
+
+    A well-formed prompt covers:
+    - **Subject** — the main object, character, or scene element
+    - **Action** — what's happening or how it moves
+    - **Setting** — the environment, background, or location
+    - **Mood** — the emotional tone or atmosphere
+    - **Visual style** — cinematic, minimal, vibrant, etc.
+
+    Example: `"A barista pours latte art into a ceramic cup in a softly lit coffee shop, slow motion, warm golden tones, shallow depth of field"`
+  </Step>
+
+  <Step title="Choose your style and aspect ratio">
+    TechBlazing supports four generation styles and three aspect ratios. Pick the combination that matches your platform and content type.
+
+    **Styles:**
+    | Value | Best for |
+    |---|---|
+    | `realistic` | Product shots, lifestyle content, documentary feel |
+    | `cinematic` | Film-quality storytelling, trailers, brand videos |
+    | `animated` | Explainers, social content, playful scenes |
+    | `illustrated` | Editorial, concept art, stylized brand content |
+
+    **Aspect ratios:**
+    | Value | Use case |
+    |---|---|
+    | `16:9` | YouTube, presentations, widescreen |
+    | `9:16` | TikTok, Instagram Reels, Shorts |
+    | `1:1` | Instagram feed, thumbnails, ads |
+
+    See [Aspect Ratios](/guides/aspect-ratios) for a deeper comparison.
+  </Step>
+
+  <Step title="Create the generation via API">
+    Send a `POST` request to `/v1/generations` with your prompt, style, aspect ratio, and desired duration (5–60 seconds). The API returns a generation object with an `id` you'll use to track progress.
+
+    <CodeGroup>
+      ```bash curl
+      curl -X POST https://api.techblazing.com/v1/generations \
+        -H "Authorization: Bearer $TECHBLAZING_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "prompt": "A barista pours latte art into a ceramic cup in a softly lit coffee shop, slow motion, warm golden tones, shallow depth of field",
+          "style": "cinematic",
+          "aspect_ratio": "16:9",
+          "duration": 10
+        }'
+      ```
+
+      ```javascript Node.js
+      import TechBlazing from '@techblazing/sdk';
+
+      const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+      const generation = await client.generations.create({
+        prompt: 'A barista pours latte art into a ceramic cup in a softly lit coffee shop, slow motion, warm golden tones, shallow depth of field',
+        style: 'cinematic',
+        aspect_ratio: '16:9',
+        duration: 10,
+      });
+
+      console.log('Generation ID:', generation.id);
+      console.log('Status:', generation.status);
+      ```
+
+      ```python Python
+      import os
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+      generation = client.generations.create(
+          prompt='A barista pours latte art into a ceramic cup in a softly lit coffee shop, slow motion, warm golden tones, shallow depth of field',
+          style='cinematic',
+          aspect_ratio='16:9',
+          duration=10,
+      )
+
+      print('Generation ID:', generation.id)
+      print('Status:', generation.status)
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Poll until complete">
+    Generations are processed asynchronously. Poll `GET /v1/generations/{id}` until the `status` field returns `completed`. A typical generation takes 30–120 seconds depending on duration and style.
+
+    Possible status values: `queued` → `processing` → `completed` | `failed`
+
+    <CodeGroup>
+      ```javascript Node.js
+      import TechBlazing from '@techblazing/sdk';
+
+      const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+      async function waitForCompletion(generationId) {
+        while (true) {
+          const generation = await client.generations.retrieve(generationId);
+
+          if (generation.status === 'completed') {
+            console.log('Output URL:', generation.output_url);
+            return generation;
+          }
+
+          if (generation.status === 'failed') {
+            throw new Error(`Generation failed: ${generation.error}`);
+          }
+
+          console.log(`Status: ${generation.status} — checking again in 5s`);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+
+      await waitForCompletion('gen_abc123');
+      ```
+
+      ```python Python
+      import os
+      import time
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+      def wait_for_completion(generation_id: str):
+          while True:
+              generation = client.generations.retrieve(generation_id)
+
+              if generation.status == 'completed':
+                  print('Output URL:', generation.output_url)
+                  return generation
+
+              if generation.status == 'failed':
+                  raise RuntimeError(f'Generation failed: {generation.error}')
+
+              print(f'Status: {generation.status} — checking again in 5s')
+              time.sleep(5)
+
+      wait_for_completion('gen_abc123')
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Download the output video">
+    Once `status` is `completed`, the `output_url` field contains a direct download link to your generated video file (MP4). The URL is valid for 24 hours — download and store it in your own storage if you need long-term access.
+
+    ```bash curl
+    curl -L "https://cdn.techblazing.com/outputs/gen_abc123.mp4" \
+      -o my-video.mp4
+    ```
+  </Step>
+</Steps>
+
+## Example prompts
+
+Use these as starting points and adapt them to your content. Notice how each one anchors the scene with a subject, action, setting, and mood.
+
+**Product lifestyle shot**
+```
+A sleek pair of white wireless headphones resting on a minimalist marble desk beside a small succulent plant, soft studio lighting, shallow depth of field, clean and modern aesthetic
+```
+
+**Brand explainer scene**
+```
+An aerial view of a modern city at dusk, traffic lights streaking below, a single skyscraper lit up in blue, cinematic drone pull-back, moody and aspirational
+```
+
+**Social media hook**
+```
+A satisfying close-up of a knife slicing through a perfectly ripe avocado in slow motion, bright natural light, fresh green tones, clean kitchen background
+```
+
+<Tip>
+  Be specific about **lighting** (soft, harsh, golden hour, neon), **camera angle** (overhead, eye level, low angle, drone), and **mood** (tense, joyful, serene, energetic). These three details alone will dramatically improve output consistency. Vague prompts like "a cool video of a city" give the model too much latitude — you'll get different results every time.
+</Tip>

@@ -1,0 +1,138 @@
+---
+title: "GET /v1/generations — List All Generations"
+sidebarTitle: "List Generations"
+description: "GET /v1/generations — List all your video generations with cursor-based pagination. Filter by status and sort by creation date."
+---
+
+Retrieve a paginated list of all video generations associated with your API key, sorted by creation date in descending order (newest first). Use the `status` filter to narrow results to a specific lifecycle stage, and use the cursor-based pagination parameters to page through large result sets efficiently.
+
+## Endpoint
+
+```
+GET https://api.techblazing.com/v1/generations
+```
+
+## Query Parameters
+
+<ParamField query="limit" type="integer" default="20">
+  The maximum number of generations to return in a single response. Accepts a value between `1` and `100`. Defaults to `20`.
+</ParamField>
+
+<ParamField query="after" type="string">
+  A pagination cursor. Pass the `next_cursor` value from a previous response to retrieve the next page of results. Omit this parameter to start from the most recent generation.
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter results to only generations with the given status. Accepted values: `queued`, `processing`, `completed`, `failed`. Omit this parameter to return generations in all states.
+</ParamField>
+
+## Response
+
+Returns a paginated envelope containing an array of [Generation objects](/api-reference/generations/retrieve).
+
+```json
+{
+  "data": [
+    {
+      "id": "gen_01H9K7XVMZQ3P4R5T6Y8W",
+      "object": "generation",
+      "status": "completed",
+      "prompt": "A cinematic shot of a mountain at golden hour, wide angle, dramatic lighting",
+      "style": "cinematic",
+      "aspect_ratio": "16:9",
+      "duration": 15,
+      "quality": "hd",
+      "input_asset_id": null,
+      "script": null,
+      "output_url": "https://cdn.techblazing.com/outputs/gen_01H9K7XVMZQ3P4R5T6Y8W.mp4?token=abc123&expires=1720000000",
+      "error": null,
+      "created_at": "2024-07-01T14:23:00Z",
+      "completed_at": "2024-07-01T14:24:12Z"
+    }
+  ],
+  "has_more": true,
+  "next_cursor": "gen_01H9K2ABCD1234567890X"
+}
+```
+
+### Response Fields
+
+| Field         | Type          | Description                                                                                             |
+|---------------|---------------|---------------------------------------------------------------------------------------------------------|
+| `data`        | array         | An array of Generation objects for the current page.                                                    |
+| `has_more`    | boolean       | `true` if there are additional pages of results. Pass `next_cursor` to the `after` parameter to fetch them. |
+| `next_cursor` | string\|null  | The ID to use as the `after` cursor when fetching the next page. `null` when `has_more` is `false`.    |
+
+## Code Examples
+
+The examples below show how to iterate through all pages of results using a pagination loop.
+
+<CodeGroup>
+
+```javascript Node.js
+async function listAllGenerations(status) {
+  const baseUrl = 'https://api.techblazing.com/v1/generations';
+  const headers = { 'Authorization': 'Bearer <API_KEY>' };
+
+  let cursor = null;
+  let allGenerations = [];
+
+  do {
+    const params = new URLSearchParams({ limit: '100' });
+    if (status) params.set('status', status);
+    if (cursor) params.set('after', cursor);
+
+    const response = await fetch(`${baseUrl}?${params}`, { headers });
+    const page = await response.json();
+
+    allGenerations = allGenerations.concat(page.data);
+    cursor = page.has_more ? page.next_cursor : null;
+  } while (cursor);
+
+  console.log(`Fetched ${allGenerations.length} generation(s) total.`);
+  return allGenerations;
+}
+
+// List only completed generations
+await listAllGenerations('completed');
+```
+
+```python Python
+import httpx
+
+def list_all_generations(status=None):
+    base_url = 'https://api.techblazing.com/v1/generations'
+    headers = {'Authorization': 'Bearer <API_KEY>'}
+
+    cursor = None
+    all_generations = []
+
+    while True:
+        params = {'limit': 100}
+        if status:
+            params['status'] = status
+        if cursor:
+            params['after'] = cursor
+
+        response = httpx.get(base_url, headers=headers, params=params)
+        page = response.json()
+
+        all_generations.extend(page['data'])
+
+        if page['has_more']:
+            cursor = page['next_cursor']
+        else:
+            break
+
+    print(f"Fetched {len(all_generations)} generation(s) total.")
+    return all_generations
+
+# List only completed generations
+list_all_generations(status='completed')
+```
+
+</CodeGroup>
+
+<Tip>
+  Use the `status=failed` filter to quickly surface generations that encountered errors. Each failed generation's `error` field contains a machine-readable `code` and a human-readable `message` you can use to diagnose and retry the request with an adjusted prompt or parameters.
+</Tip>

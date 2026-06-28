@@ -1,0 +1,84 @@
+---
+title: "DELETE /v1/assets/{id} — Delete an Asset"
+sidebarTitle: "Delete Asset"
+description: "DELETE /v1/assets/{id} — Permanently delete an uploaded asset. Any generations that referenced this asset will not be affected."
+---
+
+Permanently remove an uploaded asset from TechBlazing. You might do this to clean up assets that are no longer needed, manage storage, or comply with data retention policies. Once deleted, the asset can no longer be used as a reference in new generation requests.
+
+## Endpoint
+
+```
+DELETE https://api.techblazing.com/v1/assets/{id}
+```
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the asset to delete. Asset IDs are prefixed with `ast_`.
+</ParamField>
+
+## Response
+
+Returns a confirmation object on success.
+
+```json Example response
+{
+  "id": "ast_01H9K7XVMZQ3P4R5T6Y8W",
+  "deleted": true
+}
+```
+
+<Warning>
+  Deletion is **permanent and cannot be undone**. Once you delete an asset, you cannot recover it. If you think you might need the asset again, download a copy from its `url` before deleting.
+</Warning>
+
+<Note>
+  Deleting an asset does not affect any generations that previously used it. Completed generations retain their own `output_url` on TechBlazing's CDN, which remains accessible independently of the source asset.
+</Note>
+
+## Code examples
+
+<CodeGroup>
+
+```bash curl
+curl --request DELETE \
+  --url https://api.techblazing.com/v1/assets/ast_01H9K7XVMZQ3P4R5T6Y8W \
+  --header "Authorization: Bearer $TECHBLAZING_API_KEY"
+```
+
+```javascript Node.js
+import fetch from "node-fetch";
+
+const assetId = "ast_01H9K7XVMZQ3P4R5T6Y8W";
+
+const response = await fetch(
+  `https://api.techblazing.com/v1/assets/${assetId}`,
+  {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${process.env.TECHBLAZING_API_KEY}`,
+    },
+  }
+);
+
+const result = await response.json();
+console.log(result.deleted); // true
+```
+
+```python Python
+import os
+import requests
+
+asset_id = "ast_01H9K7XVMZQ3P4R5T6Y8W"
+
+response = requests.delete(
+    f"https://api.techblazing.com/v1/assets/{asset_id}",
+    headers={"Authorization": f"Bearer {os.environ['TECHBLAZING_API_KEY']}"},
+)
+
+result = response.json()
+print(result["deleted"])  # True
+```
+
+</CodeGroup>

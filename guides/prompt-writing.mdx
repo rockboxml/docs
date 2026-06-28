@@ -1,0 +1,119 @@
+---
+title: "Write Better AI Video Prompts for TechBlazing"
+sidebarTitle: "Prompt Writing"
+description: "Learn how to write effective prompts for TechBlazing's AI video generator. Tips on specificity, visual direction, style, and scene composition."
+---
+
+Your prompt is the single biggest lever you control over generation quality. TechBlazing's model is capable of producing highly polished, visually intentional output — but it needs enough signal from your prompt to do so. A vague prompt produces unpredictable results. A well-crafted prompt produces consistent, usable video on the first or second try.
+
+## Anatomy of a good prompt
+
+The most reliable prompts follow a five-part structure. You don't need to write in bullet points — a single fluid sentence works well — but hitting all five elements will anchor the model and reduce unwanted variation.
+
+| Element | What it does | Example |
+|---|---|---|
+| **Subject** | Defines the main focus of the scene | `a woman in her 30s` |
+| **Action** | Describes what's happening or how it moves | `walking through a sunlit forest trail` |
+| **Setting** | Establishes the environment or background | `tall pine trees, dappled morning light` |
+| **Mood** | Sets the emotional register | `calm, peaceful, introspective` |
+| **Style** | Communicates the visual treatment | `cinematic, shallow depth of field, muted greens` |
+
+**Combined:** `"A woman in her 30s walking through a sunlit forest trail, tall pine trees with dappled morning light, calm and introspective mood, cinematic, shallow depth of field, muted green color palette"`
+
+## What to include
+
+Beyond the five core elements, these specific details consistently improve output quality:
+
+**Lighting**
+Lighting defines the feel of a scene more than almost any other element. Be precise: `soft diffused studio lighting`, `harsh midday sun`, `golden hour backlight`, `cool blue neon glow`, `candlelight`.
+
+**Camera movement and angle**
+The model responds to camera direction: `slow push-in`, `subtle zoom out`, `tracking shot`, `overhead bird's-eye view`, `low angle looking up`, `handheld slight shake`, `static locked-off frame`.
+
+**Color palette**
+Name your palette explicitly: `warm amber and terracotta tones`, `desaturated muted palette`, `high contrast black and white`, `vibrant tropical colors`.
+
+**Time of day and environment**
+`Golden hour`, `blue hour twilight`, `overcast midday`, `night with street lights`, `early morning fog` all carry strong visual associations the model understands well.
+
+**Pacing and motion feel**
+`Slow motion`, `real-time`, `subtle ambient motion`, `fast-paced dynamic cuts` help the model calibrate energy level.
+
+## Do vs. Don't
+
+| ❌ Vague | ✅ Specific |
+|---|---|
+| `A cool city video` | `Aerial drone shot over Manhattan at dusk, city lights emerging, warm and cool contrast, slow pull-back, cinematic` |
+| `A product video` | `A glass perfume bottle on a reflective black surface, slow 360-degree rotation, dramatic side lighting, moody luxury aesthetic` |
+| `Nature scene` | `A rushing mountain stream cutting through mossy rocks, bright midday sun, clear water with visible stones below the surface, peaceful and immersive` |
+| `Something futuristic` | `A sleek autonomous vehicle moving through a rain-slicked city street at night, neon reflections on wet pavement, cyberpunk aesthetic, tracking shot` |
+| `Happy people` | `A group of friends laughing around a table on a rooftop terrace at sunset, warm golden light, candid and joyful, shallow depth of field` |
+
+## Style modifiers
+
+TechBlazing gives you two ways to control visual style: the `style` API parameter and style language embedded directly in your prompt. They work together, not in opposition.
+
+**The `style` parameter** sets the broad rendering mode:
+- `realistic` — photorealistic rendering, natural textures and lighting
+- `cinematic` — film-quality color grading, dramatic framing, high production value
+- `animated` — fluid 2D/3D animation aesthetic
+- `illustrated` — painterly or illustrative rendering
+
+**Embedding style in your prompt** lets you add nuance within that mode. For example, with `style: "cinematic"` you can still push the look with prompt language: `"film noir, high contrast, 1940s noir lighting"` or `"warm Wes Anderson palette, symmetric framing, pastel tones"`.
+
+Use both together for the most controlled results:
+
+```json
+{
+  "style": "cinematic",
+  "prompt": "... warm Wes Anderson color palette, perfectly symmetric framing, pastel greens and yellows"
+}
+```
+
+## Common mistakes
+
+**Overly long prompts**
+Prompts beyond 150–200 words can start to dilute focus. The model may try to incorporate too many elements and produce a cluttered or inconsistent scene. Write tightly — every word should earn its place.
+
+**Conflicting instructions**
+`"Bright and sunny, dark and moody"` forces the model to arbitrate between contradictory directions. Pick a lane. If you want contrast, describe it specifically: `"bright sunlit exterior, dark shadowy interior through a window"`.
+
+**Abstract-only prompts**
+`"Freedom"`, `"innovation"`, `"trust"` — abstract concepts without visual anchors give the model nothing concrete to render. Translate abstractions into specific imagery: `"innovation"` becomes `"a researcher's hands assembling a circuit board under a focused desk lamp"`.
+
+**Neglecting motion**
+Text-to-video is a *video* format — describe movement. A prompt that reads like a photograph description (`"a red apple on a wooden table"`) will produce minimal or generic motion. Add dynamics: `"a red apple resting on a wooden farmhouse table, morning light slowly shifting as clouds pass, gentle ambient shadows"`.
+
+**Over-specifying conflicting camera moves**
+`"Zoom in, pan left, orbit right, and pull back"` in the same prompt sends conflicting signals. Choose one dominant camera motion per scene.
+
+## Example prompts across use cases
+
+**Product**
+```
+A premium skincare serum bottle on a white marble surface, slow close-up reveal from base to cap, soft diffused studio lighting, luxury beauty aesthetic, clean and minimal background, high-end editorial feel
+```
+
+**Nature**
+```
+A timelapse of storm clouds rolling over a vast wheat field at golden hour, dramatic sky, warm amber light giving way to dark purple, wide establishing shot, cinematic and awe-inspiring
+```
+
+**Social media**
+```
+A satisfying flat-lay arrangement of colorful summer fruits on a white surface being assembled piece by piece, bright natural daylight, overhead shot, clean and vibrant, lifestyle content aesthetic
+```
+
+**Corporate**
+```
+A confident professional woman presenting at a glass-walled conference room overlooking a city skyline, warm afternoon light, colleagues attentive in background, slightly shallow depth of field, modern and aspirational
+```
+
+**Creative / abstract**
+```
+Ink drops slowly dispersing through clear water in extreme close-up, deep navy and gold tones, macro lens, smooth and hypnotic motion, dark ambient atmosphere, art film aesthetic
+```
+
+<Tip>
+  Start short and iterate. Write a 1–2 sentence prompt, generate a result, identify what's missing or off, then add one specific detail at a time. This approach helps you understand which prompt elements are driving which visual outcomes — and gets you to a great result faster than trying to write the perfect prompt on the first attempt.
+</Tip>

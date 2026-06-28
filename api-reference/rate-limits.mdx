@@ -1,0 +1,172 @@
+---
+title: "TechBlazing API Rate Limits by Plan"
+sidebarTitle: "Rate Limits"
+description: "TechBlazing API rate limits by plan tier. Learn how limits work, how to read rate limit headers, and how to implement retry logic with backoff."
+---
+
+TechBlazing enforces two independent rate limits on every plan: a **daily generation quota** that caps how many videos you can create in a 24-hour window, and a **per-minute request limit** that applies to all API calls regardless of type. Understanding both limits — and reading the rate limit headers in every response — helps you build integrations that stay within quota and recover gracefully when they don't.
+
+## Limits by Plan
+
+| Plan | Generations / Day | API Requests / Minute |
+|------|------------------:|----------------------:|
+| **Free** | 10 | 60 |
+| **Starter** ($29 / mo) | 100 | 120 |
+| **Pro** ($99 / mo) | 500 | 300 |
+| **Enterprise** | Custom | Custom |
+
+The daily generation quota resets at midnight UTC. The per-minute request limit uses a rolling window.
+
+<Note>
+  Enterprise plans have fully customizable rate limits negotiated at contract time. [Contact our sales team](https://techblazing.com/contact) to discuss your volume requirements.
+</Note>
+
+## Rate Limit Headers
+
+Every API response includes three headers that tell you exactly where you stand against the per-minute request limit.
+
+| Header | Type | Description |
+|--------|------|-------------|
+| `X-RateLimit-Limit` | integer | The maximum number of requests allowed in the current window for your plan. |
+| `X-RateLimit-Remaining` | integer | The number of requests remaining in the current window. |
+| `X-RateLimit-Reset` | integer (Unix timestamp) | The UTC time at which the current window resets and `X-RateLimit-Remaining` returns to its maximum value. |
+
+### Reading rate limit headers
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch("https://api.techblazing.com/v1/generations", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt: "Aerial sunset over the ocean" }),
+});
+
+const limit     = parseInt(response.headers.get("X-RateLimit-Limit"),     10);
+const remaining = parseInt(response.headers.get("X-RateLimit-Remaining"), 10);
+const reset     = parseInt(response.headers.get("X-RateLimit-Reset"),     10);
+
+console.log(`${remaining} / ${limit} requests remaining.`);
+console.log(`Window resets at ${new Date(reset * 1000).toISOString()}.`);
+
+const body = await response.json();
+```
+
+</CodeGroup>
+
+## Handling 429 Rate Limit Errors
+
+When you exceed the per-minute request limit, the API returns a `429 rate_limit_exceeded` error. The `X-RateLimit-Reset` header in the response tells you exactly when your window resets, but we recommend **exponential backoff with jitter** rather than waiting for the exact reset time. This spreads retries across time and avoids thundering-herd problems when multiple workers hit the limit simultaneously.
+
+The algorithm:
+
+1. On the first `429`, wait a base delay (e.g., 1 second) plus a random jitter value.
+2. On each subsequent `429`, double the delay up to a configured maximum.
+3. After a maximum number of attempts, surface the error to the caller.
+
+<CodeGroup>
+
+```javascript Node.js
+async function fetchWithBackoff(url, options, maxRetries = 5) {
+  const BASE_DELAY_MS = 1000;
+  const MAX_DELAY_MS  = 32_000;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options);
+
+    if (response.status !== 429) {
+      return response; // success or a non-retryable error — let the caller handle it
+    }
+
+    if (attempt === maxRetries) {
+      throw new Error(`Rate limit exceeded after ${maxRetries} retries.`);
+    }
+
+    // Exponential backoff: 1s, 2s, 4s, 8s … capped at MAX_DELAY_MS
+    const exponential = Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS);
+    // Add jitter: a random fraction of the exponential delay
+    const jitter = Math.random() * exponential * 0.3;
+    const delay  = Math.round(exponential + jitter);
+
+    console.warn(`Rate limited. Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})…`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+}
+
+// Usage
+const response = await fetchWithBackoff(
+  "https://api.techblazing.com/v1/generations",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer YOUR_API_KEY",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt: "Aerial sunset over the ocean" }),
+  }
+);
+
+const { data } = await response.json();
+```
+
+```python Python
+import time
+import random
+import httpx
+
+def fetch_with_backoff(
+    url: str,
+    *,
+    json: dict,
+    headers: dict,
+    max_retries: int = 5,
+    base_delay: float = 1.0,
+    max_delay: float = 32.0,
+) -> httpx.Response:
+    for attempt in range(max_retries + 1):
+        response = httpx.post(url, headers=headers, json=json)
+
+        if response.status_code != 429:
+            return response  # success or non-retryable error — let the caller handle it
+
+        if attempt == max_retries:
+            raise RuntimeError(f"Rate limit exceeded after {max_retries} retries.")
+
+        # Exponential backoff capped at max_delay
+        exponential = min(base_delay * (2 ** attempt), max_delay)
+        # Jitter: ±30 % of exponential delay
+        jitter = random.uniform(0, exponential * 0.3)
+        delay = exponential + jitter
+
+        print(f"Rate limited. Retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries})…")
+        time.sleep(delay)
+
+# Usage
+response = fetch_with_backoff(
+    "https://api.techblazing.com/v1/generations",
+    headers={
+        "Authorization": "Bearer YOUR_API_KEY",
+        "Content-Type": "application/json",
+    },
+    json={"prompt": "Aerial sunset over the ocean"},
+)
+
+data = response.json()["data"]
+```
+
+</CodeGroup>
+
+## Conserving Your Request Budget
+
+<Tip>
+  Use **webhooks** instead of polling the API to check generation status. A generation that takes 30 seconds to complete could cost you 30 or more status-check requests if you poll every second — a significant portion of your per-minute limit. Registering a webhook endpoint means TechBlazing pushes a notification to you the moment a generation completes, with zero polling cost.
+</Tip>
+
+Other strategies to stay within your limits:
+
+- **Batch reads where possible.** List endpoints return up to 100 items per page, so prefer a single paginated list call over many individual `GET /generations/{id}` lookups.
+- **Cache resource data locally.** If you reference the same generation or asset repeatedly, store the response in your application rather than re-fetching it.
+- **Use conditional logic before generating.** Validate prompts and parameters client-side before sending a request to avoid wasting generation quota on requests that will return `422`.

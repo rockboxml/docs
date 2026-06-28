@@ -1,0 +1,81 @@
+---
+title: "Video Generation Input Types in TechBlazing"
+sidebarTitle: "Video Inputs"
+description: "TechBlazing accepts text prompts, reference images, and full scripts as inputs. Learn which input type to use for your video generation use case."
+---
+
+TechBlazing gives you three distinct ways to tell the AI what to generate: a free-form text prompt, a reference image uploaded through the Assets API, or a structured script with speaker notes. Each input type gives the model different signals, and choosing the right one — or the right combination — is the fastest path to a great result.
+
+## Text Prompts
+
+A text prompt is a plain-language description of the video you want to create. It is the most flexible input type: you describe the scene, subjects, action, mood, and any specific details, and the AI fills in the rest.
+
+**How to write effective prompts:**
+
+- Be specific about the subject, setting, and action. *"A red fox running through a snow-covered pine forest at dusk"* produces a more consistent result than *"a fox in a forest."*
+- Include lighting and atmosphere cues. Words like *"golden hour," "overcast," "neon-lit,"* or *"foggy"* have a strong influence on the visual output.
+- Describe motion explicitly. The AI does not assume movement — if you want a camera pan or a character walking, say so.
+- Avoid contradictions. Conflicting instructions (e.g., *"bright sunshine"* and *"moonlit night"*) cause the model to average them unpredictably.
+
+**Constraints:**
+
+- Maximum length: **2,000 characters**
+- Supported languages: English (other languages may work but are not officially supported)
+
+## Reference Images
+
+A reference image gives the AI a concrete visual starting point. Instead of inferring every detail from text, the model uses your image to anchor the composition, color palette, style, and subject matter — then animates or extends it.
+
+**Uploading images:**
+
+Before you can reference an image in a generation request, you must upload it through the Assets API. The upload returns an `asset_id` that you pass as `image_asset_id` in your generation request.
+
+**Supported formats and limits:**
+
+| Property | Value |
+|---|---|
+| Accepted formats | JPEG, PNG, WebP |
+| Maximum file size | 10 MB |
+| Minimum resolution | 256 × 256 px |
+| Recommended resolution | 1024 × 1024 px or higher |
+
+**How reference images influence output:**
+
+The model treats the image as a strong prior. Subject identity, color relationships, and framing all carry over into the generated video. You can still provide a text prompt alongside the image to steer motion, mood, or scene changes — but the image takes precedence over conflicting textual descriptions of appearance.
+
+## Scripts
+
+A script is a structured text input designed for narration-driven videos. Scripts let you define what the video says and show, making them ideal for explainer videos, product demos, and training content.
+
+**Script format:**
+
+Write your script as a sequence of scenes or segments. Each segment contains the spoken narration and, optionally, visual direction notes enclosed in square brackets.
+
+```text
+[Open on a busy city street at dawn]
+Every morning, millions of people start their day with a commute.
+
+[Cut to a close-up of a smartphone screen]
+TechBlazing helps businesses reach those commuters with video that stops the scroll.
+```
+
+**Voiceover generation:**
+
+When you include a script, TechBlazing can automatically generate a voiceover track from the narration text. Set `voiceover: true` in your generation request and choose a voice from the available voice library.
+
+**Constraints:**
+
+- Maximum script length: **10,000 characters**
+- Visual direction notes in `[brackets]` are interpreted as scene guidance, not narrated aloud
+
+## Choosing the Right Input Type
+
+| Input type | Best for | Creative control | Visual precision |
+|---|---|---|---|
+| Text prompt | Concept exploration, abstract scenes, creative briefs | High | Medium |
+| Reference image | Product videos, character consistency, style matching | Medium | High |
+| Script | Explainers, demos, narrated stories, training content | Medium | Medium |
+
+<Tip>
+  You can combine a **reference image** with a **text prompt** in a single generation request for the best of both worlds. The image grounds the visual style and subject matter while your prompt layers on motion, atmosphere, and narrative direction. For example, upload a product photo and then prompt *"slow 360-degree rotation, soft studio lighting, subtle particle effects"* to produce a polished product showcase video.
+</Tip>

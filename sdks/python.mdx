@@ -1,0 +1,219 @@
+---
+title: "TechBlazing Python SDK Reference"
+sidebarTitle: "Python SDK"
+description: "Install and use the TechBlazing Python SDK to generate AI videos, manage assets, and handle webhooks in your Python applications."
+---
+
+The TechBlazing Python SDK gives you a clean, Pythonic interface to the TechBlazing API. It handles authentication, request formatting, and response parsing so you can focus on building your application rather than managing HTTP plumbing.
+
+## Installation
+
+Install the SDK from PyPI:
+
+```bash
+pip install techblazing
+```
+
+If you manage dependencies with a `requirements.txt` file, add the following line:
+
+```text
+techblazing
+```
+
+## Configuration
+
+Import the client and initialize it with your API key. The SDK reads your key from the `TECHBLAZING_API_KEY` environment variable automatically if you don't pass it explicitly.
+
+```python
+import os
+from techblazing import TechBlazing
+
+client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+```
+
+You can also set the environment variable in your shell before running your script:
+
+```bash
+export TECHBLAZING_API_KEY="your-api-key-here"
+```
+
+---
+
+## Generations
+
+### Create a generation
+
+Call `client.generations.create()` to submit a new video generation job. The method accepts the following keyword arguments:
+
+| Parameter      | Type    | Required | Description                                                  |
+| -------------- | ------- | -------- | ------------------------------------------------------------ |
+| `prompt`       | `str`   | Yes      | Text description of the video you want to generate.          |
+| `style`        | `str`   | No       | Visual style preset (e.g. `"cinematic"`, `"anime"`).         |
+| `aspect_ratio` | `str`   | No       | Output aspect ratio, e.g. `"16:9"` or `"9:16"`.             |
+| `duration`     | `float` | No       | Desired clip length in seconds.                              |
+
+```python
+generation = client.generations.create(
+    prompt="A time-lapse of a city skyline transitioning from dusk to dawn",
+    style="cinematic",
+    aspect_ratio="16:9",
+    duration=10,
+)
+
+print(generation.id)      # gen_abc123
+print(generation.status)  # "processing"
+```
+
+### Retrieve a generation
+
+Fetch the current state of a generation by its ID. Poll this method until `status` is `"completed"` or `"failed"`.
+
+```python
+generation = client.generations.retrieve("gen_abc123")
+
+print(generation.status)      # "completed"
+print(generation.output_url)  # "https://..."
+```
+
+### List generations
+
+Retrieve a paginated list of your generations. Use `limit` to control page size and `after` to cursor through results.
+
+```python
+page = client.generations.list(limit=20)
+
+for generation in page.data:
+    print(generation.id, generation.status)
+
+# Fetch the next page
+if page.has_more:
+    next_page = client.generations.list(
+        limit=20,
+        after=page.data[-1].id,
+    )
+```
+
+### Cancel a generation
+
+Cancel a generation that is still in `"processing"` status.
+
+```python
+cancelled = client.generations.cancel("gen_abc123")
+
+print(cancelled.status)  # "cancelled"
+```
+
+---
+
+## Assets
+
+### Upload an asset
+
+Upload a local file (image or video) for use as input in a generation. Open the file in binary mode and pass it alongside the filename and MIME type.
+
+```python
+with open("reference-image.jpg", "rb") as f:
+    asset = client.assets.upload(
+        f,
+        filename="reference-image.jpg",
+        content_type="image/jpeg",
+    )
+
+print(asset.id)   # ast_xyz789
+print(asset.url)  # "https://..."
+```
+
+### Retrieve an asset
+
+```python
+asset = client.assets.retrieve("ast_xyz789")
+
+print(asset.filename)
+print(asset.url)
+```
+
+### Delete an asset
+
+```python
+result = client.assets.delete("ast_xyz789")
+
+print(result.deleted)  # True
+```
+
+---
+
+## Error Handling
+
+The SDK raises a `TechBlazingError` for any non-2xx HTTP response. Check `error.status` for the HTTP status code and `error.code` for a machine-readable error identifier you can use in your exception handling logic.
+
+```python
+import os
+import time
+from techblazing import TechBlazing
+from techblazing.exceptions import TechBlazingError
+
+client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+try:
+    generation = client.generations.create(
+        prompt="A sunset over the ocean",
+    )
+except TechBlazingError as e:
+    print(f"HTTP {e.status} — {e.code}: {e.message}")
+
+    if e.status == 429:
+        # Implement exponential back-off and retry
+        time.sleep(2)
+```
+
+---
+
+## End-to-End Example
+
+The following example shows a complete workflow: uploading a reference image, creating a generation that uses it, polling until the job finishes, and printing the output URL.
+
+```python
+import os
+import time
+from techblazing import TechBlazing
+from techblazing.exceptions import TechBlazingError
+
+client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+def main():
+    # 1. Upload a reference image
+    print("Uploading reference image…")
+    with open("reference.jpg", "rb") as f:
+        asset = client.assets.upload(
+            f,
+            filename="reference.jpg",
+            content_type="image/jpeg",
+        )
+    print(f"Asset uploaded: {asset.id}")
+
+    # 2. Create a generation
+    print("Creating generation…")
+    generation = client.generations.create(
+        prompt="Animate this scene with gentle camera movement and cinematic lighting",
+        style="cinematic",
+        aspect_ratio="16:9",
+        duration=8,
+    )
+    print(f"Generation created: {generation.id} ({generation.status})")
+
+    # 3. Poll until complete
+    result = generation
+    while result.status == "processing":
+        time.sleep(5)  # wait 5 seconds between polls
+        result = client.generations.retrieve(generation.id)
+        print(f"Status: {result.status}")
+
+    # 4. Print the output
+    if result.status == "completed":
+        print(f"✅ Output URL: {result.output_url}")
+    else:
+        print(f"❌ Generation failed: {result.error}")
+
+if __name__ == "__main__":
+    main()
+```

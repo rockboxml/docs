@@ -1,0 +1,210 @@
+---
+title: "Receive Real-Time Generation Updates via Webhooks"
+sidebarTitle: "Webhooks"
+description: "Configure TechBlazing webhooks to receive real-time HTTP callbacks when video generations complete or fail. Includes setup, validation, and handling examples."
+---
+
+Instead of repeatedly polling the `generations.retrieve` endpoint to check whether a job has finished, you can register a webhook endpoint and let TechBlazing push a notification to your server the moment a generation completes or fails. This reduces latency, eliminates unnecessary API calls, and simplifies your application logic.
+
+## Setting Up a Webhook Endpoint
+
+To register your endpoint, follow these steps in the TechBlazing dashboard:
+
+1. Open the [TechBlazing dashboard](https://app.techblazing.com) and navigate to **Settings → Webhooks**.
+2. Click **Add Endpoint**.
+3. Enter the publicly accessible HTTPS URL where TechBlazing should send event payloads.
+4. Select the events you want to receive — `generation.completed` and/or `generation.failed`.
+5. Click **Save**. TechBlazing generates a **Webhook Secret** — copy this value and store it securely. You will use it to verify incoming payloads.
+
+---
+
+## Webhook Payload Structure
+
+Every webhook request is an HTTP POST with a JSON body. The payload has the following shape:
+
+```json
+{
+  "event": "generation.completed",
+  "id": "evt_01hxyz",
+  "data": {
+    "id": "gen_abc123",
+    "status": "completed",
+    "output_url": "https://cdn.techblazing.com/outputs/gen_abc123.mp4",
+    "prompt": "A time-lapse of a city skyline at night",
+    "created_at": "2024-06-01T12:00:00Z",
+    "completed_at": "2024-06-01T12:01:45Z"
+  },
+  "timestamp": "2024-06-01T12:01:46Z"
+}
+```
+
+| Field       | Type     | Description                                                               |
+| ----------- | -------- | ------------------------------------------------------------------------- |
+| `event`     | `string` | Event type: `generation.completed` or `generation.failed`.                |
+| `id`        | `string` | Unique identifier for this webhook delivery attempt.                      |
+| `data`      | `object` | The full `Generation` object at the time the event was emitted.           |
+| `timestamp` | `string` | ISO 8601 UTC timestamp of when the event was sent.                        |
+
+---
+
+## Verifying Webhook Signatures
+
+TechBlazing signs every webhook request with HMAC-SHA256 using your Webhook Secret. The signature is included in the `X-TechBlazing-Signature` request header. You should always verify this signature before processing a payload to ensure the request genuinely came from TechBlazing and has not been tampered with.
+
+<CodeGroup>
+
+```javascript Node.js
+import crypto from 'crypto';
+
+function verifyWebhookSignature(rawBody, signature, secret) {
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+
+  // Use timingSafeEqual to prevent timing attacks
+  const sigBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+  if (sigBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+}
+
+// Express.js example — use express.raw() to get the raw body
+app.post('/webhooks/techblazing', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-techblazing-signature'];
+  const isValid = verifyWebhookSignature(req.body, signature, process.env.TECHBLAZING_WEBHOOK_SECRET);
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const event = JSON.parse(req.body);
+  // Handle the event...
+  res.sendStatus(200);
+});
+```
+
+```python Python
+import hashlib
+import hmac
+import os
+
+def verify_webhook_signature(raw_body: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    # Use compare_digest to prevent timing attacks
+    return hmac.compare_digest(expected, signature)
+
+# Flask example
+from flask import Flask, request, abort
+import json
+
+app = Flask(__name__)
+
+@app.route('/webhooks/techblazing', methods=['POST'])
+def handle_webhook():
+    signature = request.headers.get('X-TechBlazing-Signature', '')
+    is_valid = verify_webhook_signature(
+        request.data,
+        signature,
+        os.environ['TECHBLAZING_WEBHOOK_SECRET'],
+    )
+
+    if not is_valid:
+        abort(401)
+
+    event = json.loads(request.data)
+    # Handle the event...
+    return '', 200
+```
+
+</CodeGroup>
+
+---
+
+## Handling Events
+
+After verifying the signature, inspect the `event` field to route the payload to the appropriate handler.
+
+<CodeGroup>
+
+```javascript Node.js
+app.post('/webhooks/techblazing', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-techblazing-signature'];
+  const isValid = verifyWebhookSignature(req.body, signature, process.env.TECHBLAZING_WEBHOOK_SECRET);
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const event = JSON.parse(req.body);
+
+  switch (event.event) {
+    case 'generation.completed': {
+      const generation = event.data;
+      console.log(`Generation ${generation.id} completed. Output: ${generation.output_url}`);
+      // Download the video, notify the user, update your database, etc.
+      break;
+    }
+    case 'generation.failed': {
+      const generation = event.data;
+      console.error(`Generation ${generation.id} failed: ${generation.error}`);
+      // Alert your team, trigger a retry, update the user, etc.
+      break;
+    }
+    default:
+      console.log(`Unhandled event type: ${event.event}`);
+  }
+
+  res.sendStatus(200);
+});
+```
+
+```python Python
+@app.route('/webhooks/techblazing', methods=['POST'])
+def handle_webhook():
+    signature = request.headers.get('X-TechBlazing-Signature', '')
+    is_valid = verify_webhook_signature(
+        request.data,
+        signature,
+        os.environ['TECHBLAZING_WEBHOOK_SECRET'],
+    )
+
+    if not is_valid:
+        abort(401)
+
+    event = json.loads(request.data)
+
+    if event['event'] == 'generation.completed':
+        generation = event['data']
+        print(f"Generation {generation['id']} completed. Output: {generation['output_url']}")
+        # Download the video, notify the user, update your database, etc.
+
+    elif event['event'] == 'generation.failed':
+        generation = event['data']
+        print(f"Generation {generation['id']} failed: {generation.get('error')}")
+        # Alert your team, trigger a retry, update the user, etc.
+
+    else:
+        print(f"Unhandled event type: {event['event']}")
+
+    return '', 200
+```
+
+</CodeGroup>
+
+<Warning>
+  Your webhook endpoint must respond with an HTTP `200` status code within **5 seconds** of receiving the request. If TechBlazing does not receive a `200` within that window, it treats the delivery as failed and retries with exponential back-off. To avoid this, acknowledge the request immediately and process the payload asynchronously (e.g. push it to a queue).
+</Warning>
+
+<Tip>
+  You can test your webhook handler without triggering a real generation. In the dashboard, go to **Settings → Webhooks**, select your endpoint, and click **Send test event**. TechBlazing will deliver a sample payload so you can verify your signature validation and event-handling logic end-to-end.
+</Tip>

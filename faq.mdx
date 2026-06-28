@@ -1,0 +1,113 @@
+---
+title: "TechBlazing Frequently Asked Questions"
+sidebarTitle: "FAQ"
+description: "Answers to common questions about TechBlazing pricing, generation limits, supported formats, data retention, and API usage."
+---
+
+Below you will find answers to the questions we hear most often from developers and teams building with TechBlazing. If your question is not covered here, reach out to us at [support@techblazing.com](mailto:support@techblazing.com) or visit the [community forum](https://community.techblazing.com).
+
+<AccordionGroup>
+
+  <Accordion title="How long does a generation take?">
+    Generation time depends on the length and complexity of the clip you are requesting, as well as current platform load. As a general guide:
+
+    | Clip duration | Typical processing time |
+    | ------------- | ----------------------- |
+    | 1–5 seconds   | 20–60 seconds           |
+    | 6–15 seconds  | 1–3 minutes             |
+    | 16–30 seconds | 3–8 minutes             |
+
+    These are estimates — actual times vary. If a generation has been in `"processing"` for more than 10 minutes, see the [Troubleshooting](/troubleshooting) guide for steps to cancel and retry.
+  </Accordion>
+
+  <Accordion title="What video formats does TechBlazing output?">
+    All generations are delivered as **MP4** files encoded with H.264 video and AAC audio. This format offers broad compatibility across browsers, mobile devices, video editors, and social platforms.
+
+    If you need a different container or codec (e.g. WebM, ProRes), you can transcode the MP4 after downloading it using a tool like [FFmpeg](https://ffmpeg.org).
+  </Accordion>
+
+  <Accordion title="How long are output URLs valid?">
+    Output URLs are temporary signed URLs that expire **24 hours** after the generation completes. After expiry, the URL returns a `403` error.
+
+    To avoid losing access to a completed video, download it to your own storage as soon as possible after receiving the `generation.completed` event. If the URL has already expired, call `generations.retrieve(id)` to get a freshly signed URL with a new 24-hour window.
+  </Accordion>
+
+  <Accordion title="Can I use TechBlazing to generate videos with real people?">
+    You may use reference images or descriptions of real people only when you have the appropriate rights and permissions to do so. Generating content that:
+
+    - Depicts a real person without their consent
+    - Creates deceptive or defamatory portrayals
+    - Violates any individual's privacy or likeness rights
+
+    is prohibited under the [TechBlazing Terms of Service](https://techblazing.com/terms). Violations may result in immediate account suspension. When in doubt, use clearly fictional characters or consult your legal team before generating content featuring identifiable individuals.
+  </Accordion>
+
+  <Accordion title="What happens to my uploaded images and videos?">
+    Files you upload via the Assets API are stored securely on TechBlazing infrastructure and are used solely to fulfill your generation requests. Your assets are:
+
+    - **Private** — Only accessible to your account, never shared with other users or used to train TechBlazing models without your explicit consent.
+    - **Retained for 30 days** — Assets are automatically deleted 30 days after upload unless you delete them sooner.
+    - **Encrypted at rest** — All stored files are encrypted using AES-256.
+
+    For more detail, see the [TechBlazing Privacy Policy](https://techblazing.com/privacy).
+  </Accordion>
+
+  <Accordion title="How do I delete my data?">
+    You can delete your data in two ways:
+
+    **Individual assets** — Use the Assets API to delete a specific file:
+
+    ```bash
+    curl -X DELETE https://api.techblazing.com/v1/assets/ast_xyz789 \
+      -H "Authorization: Bearer $TECHBLAZING_API_KEY"
+    ```
+
+    **Full account deletion** — To delete your account and all associated data (generations, assets, API keys), go to **Settings → Account** in the dashboard and select **Delete Account**, or contact [support@techblazing.com](mailto:support@techblazing.com). Account deletion is permanent and cannot be undone.
+
+    TechBlazing honors all data deletion requests required under applicable privacy regulations (e.g. GDPR Article 17, CCPA).
+  </Accordion>
+
+  <Accordion title="Do you offer a free trial or free tier?">
+    Yes. New accounts receive a free trial that includes a limited number of generation credits so you can evaluate the platform without entering a payment method. Trial credits do not expire but are capped — once they are used, you need to subscribe to a paid plan to continue generating.
+
+    TechBlazing does not currently offer a permanent free tier, but paid plans start at a low monthly price that scales with your usage. See the [Pricing page](https://techblazing.com/pricing) for current plan details.
+  </Accordion>
+
+  <Accordion title="What are the API rate limits?">
+    Rate limits vary by plan. The following limits apply to all plans as defaults:
+
+    | Limit type              | Default limit          |
+    | ----------------------- | ---------------------- |
+    | Requests per minute     | 60                     |
+    | Concurrent generations  | 5                      |
+    | Generations per day     | Depends on plan tier   |
+
+    If you exceed a limit, the API returns a `429 Too Many Requests` response with a `Retry-After` header indicating how long to wait. See the [Troubleshooting](/troubleshooting) guide for guidance on implementing exponential back-off.
+
+    If your use case requires higher limits, contact [sales@techblazing.com](mailto:sales@techblazing.com) to discuss a custom plan.
+  </Accordion>
+
+  <Accordion title="Can I use TechBlazing for commercial projects?">
+    Yes. All paid plans include a commercial license that grants you full rights to use the videos you generate in commercial projects, including advertising, marketing, film, and product distribution. You own the output of your generations.
+
+    Free trial credits also carry commercial rights, subject to the credit limit and the content restrictions in the [Terms of Service](https://techblazing.com/terms).
+
+    If you are building a product where your end users generate content through your platform (i.e. you are embedding TechBlazing into your own service), review the Platform Use section of the Terms or contact [legal@techblazing.com](mailto:legal@techblazing.com) to confirm your use case is covered.
+  </Accordion>
+
+  <Accordion title="Is there an enterprise or self-hosted option?">
+    Yes. TechBlazing offers an **Enterprise plan** for teams that need:
+
+    - Higher rate limits and generation concurrency
+    - Custom model fine-tuning on your brand assets
+    - Dedicated infrastructure and SLA guarantees
+    - SSO / SAML integration
+    - Custom data retention and deletion policies
+    - Invoiced billing and volume discounts
+
+    A **self-hosted deployment** option is available for organizations with strict data residency or air-gapped network requirements, where the TechBlazing inference stack runs entirely within your own cloud environment.
+
+    To learn more or request a demo, contact [sales@techblazing.com](mailto:sales@techblazing.com).
+  </Accordion>
+
+</AccordionGroup>

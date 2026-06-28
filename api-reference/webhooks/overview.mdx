@@ -1,0 +1,154 @@
+---
+title: "TechBlazing Webhooks — Setup and Configuration"
+sidebarTitle: "Webhook Setup"
+description: "Configure TechBlazing webhooks to receive real-time HTTP POST notifications for generation events. Covers endpoint setup, secrets, and retry behavior."
+---
+
+Webhooks let TechBlazing push event notifications to your server the moment something happens — such as a generation completing or failing — rather than requiring you to repeatedly poll the API. If your application needs to react quickly to generation results, webhooks are significantly more efficient than polling: you save on API calls, reduce latency, and keep your server code simpler.
+
+## Creating a webhook endpoint
+
+### In the dashboard
+
+1. Open the [TechBlazing dashboard](https://app.techblazing.com) and navigate to **Settings → Webhooks**.
+2. Click **Add endpoint**.
+3. Enter your publicly accessible HTTPS URL (e.g., `https://yourapp.com/webhooks/techblazing`).
+4. Select the event types you want to receive (see [Webhook Events](/api-reference/webhooks/events)).
+5. Click **Save**. TechBlazing generates a **signing secret** for this endpoint — copy it immediately and store it securely.
+
+### Key fields for each webhook endpoint
+
+| Field           | Description                                                          |
+| --------------- | -------------------------------------------------------------------- |
+| **URL**         | The HTTPS URL TechBlazing will POST events to.                       |
+| **Secret**      | A random string used to sign payloads. Treat it like a password.     |
+| **Event types** | The subset of events this endpoint should receive.                   |
+| **Status**      | Active or disabled. Disabled endpoints do not receive deliveries.    |
+
+## Webhook delivery
+
+When a subscribed event fires, TechBlazing sends an HTTP `POST` request to your endpoint URL with:
+
+- **Content-Type:** `application/json`
+- **Body:** A JSON-encoded event payload (see [Webhook Events](/api-reference/webhooks/events))
+- **Signature header:** `TechBlazing-Signature: t=<timestamp>,v1=<hmac_hex>`
+
+Your endpoint must return a **`2xx` status code** within **30 seconds** to acknowledge receipt. TechBlazing reads only the status code — the response body is ignored.
+
+## Retry behavior
+
+If your endpoint returns a non-`2xx` status code or does not respond within the timeout, TechBlazing automatically retries delivery up to **5 times** using exponential backoff:
+
+| Attempt | Delay after previous attempt |
+| ------- | ---------------------------- |
+| 1       | ~30 seconds                  |
+| 2       | ~5 minutes                   |
+| 3       | ~30 minutes                  |
+| 4       | ~2 hours                     |
+| 5       | ~5 hours                     |
+
+After 5 failed attempts, the event is marked as undeliverable and no further retries occur. You can view delivery attempts and manually retry them from the **Webhooks** section of the dashboard.
+
+## Verifying signatures
+
+Every webhook delivery includes a `TechBlazing-Signature` header that lets you confirm the request genuinely came from TechBlazing and was not tampered with in transit.
+
+<Warning>
+  Always verify the signature before processing or acting on a webhook event. Skipping this check leaves your endpoint open to forged requests from third parties.
+</Warning>
+
+### Verification steps
+
+1. **Parse the header.** Split `TechBlazing-Signature` on `,` to extract the `t` (timestamp) and `v1` (expected HMAC hex digest) values.
+2. **Construct the signed payload.** Concatenate the raw timestamp, a literal `.`, and the raw (unparsed) request body: `{t}.{raw_body}`.
+3. **Compute the HMAC.** Calculate `HMAC-SHA256` of the signed payload using your endpoint's signing secret as the key.
+4. **Compare.** Use a constant-time equality check to compare your computed digest against `v1`. Reject the request if they do not match.
+5. **Check the timestamp (optional but recommended).** Reject requests where `t` is more than 5 minutes in the past to protect against replay attacks.
+
+<CodeGroup>
+
+```javascript Node.js
+import crypto from "crypto";
+
+function verifyWebhookSignature(rawBody, signatureHeader, secret) {
+  // Step 1: Parse the header
+  const parts = Object.fromEntries(
+    signatureHeader.split(",").map((p) => p.split("="))
+  );
+  const timestamp = parts["t"];
+  const expectedDigest = parts["v1"];
+
+  if (!timestamp || !expectedDigest) {
+    throw new Error("Invalid TechBlazing-Signature header");
+  }
+
+  // Step 2: Construct signed payload
+  const signedPayload = `${timestamp}.${rawBody}`;
+
+  // Step 3: Compute HMAC-SHA256
+  const computedDigest = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload, "utf8")
+    .digest("hex");
+
+  // Step 4: Constant-time comparison
+  const expected = Buffer.from(expectedDigest, "hex");
+  const computed = Buffer.from(computedDigest, "hex");
+
+  if (
+    expected.length !== computed.length ||
+    !crypto.timingSafeEqual(expected, computed)
+  ) {
+    throw new Error("Signature verification failed");
+  }
+
+  // Step 5: Optional replay-attack guard (5-minute window)
+  const age = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
+  if (age > 300) {
+    throw new Error("Webhook timestamp is too old");
+  }
+
+  return true;
+}
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+
+
+def verify_webhook_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    # Step 1: Parse the header
+    parts = dict(p.split("=", 1) for p in signature_header.split(","))
+    timestamp = parts.get("t")
+    expected_digest = parts.get("v1")
+
+    if not timestamp or not expected_digest:
+        raise ValueError("Invalid TechBlazing-Signature header")
+
+    # Step 2: Construct signed payload
+    signed_payload = f"{timestamp}.".encode() + raw_body
+
+    # Step 3: Compute HMAC-SHA256
+    computed_digest = hmac.new(
+        secret.encode(), signed_payload, hashlib.sha256
+    ).hexdigest()
+
+    # Step 4: Constant-time comparison
+    if not hmac.compare_digest(computed_digest, expected_digest):
+        raise ValueError("Signature verification failed")
+
+    # Step 5: Optional replay-attack guard (5-minute window)
+    age = int(time.time()) - int(timestamp)
+    if age > 300:
+        raise ValueError("Webhook timestamp is too old")
+
+    return True
+```
+
+</CodeGroup>
+
+<Tip>
+  During local development, use [https://webhook.site](https://webhook.site) to inspect raw webhook payloads in your browser without writing any code, or expose your local server to the internet using [ngrok](https://ngrok.com) (`ngrok http 3000`) so TechBlazing can reach your machine directly.
+</Tip>

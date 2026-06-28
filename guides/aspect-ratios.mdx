@@ -1,0 +1,70 @@
+---
+title: "Choosing the Right Aspect Ratio for Your Video"
+sidebarTitle: "Aspect Ratios"
+description: "Choose the right aspect ratio for your TechBlazing generation. Compare 16:9, 9:16, and 1:1 formats for YouTube, TikTok, Instagram, and more."
+---
+
+Aspect ratio is one of the first decisions you make when creating a generation — and it affects not just how your video looks, but how well it performs on the platform you're publishing to. TechBlazing supports three aspect ratios: `16:9`, `9:16`, and `1:1`. Each is optimized for a different set of screens, surfaces, and audience contexts.
+
+## Supported aspect ratios
+
+| Ratio | Orientation | Approximate dimensions | Best platforms | Ideal use cases |
+|---|---|---|---|---|
+| `16:9` | Landscape (widescreen) | 1920 × 1080 px | YouTube, LinkedIn, website embeds, presentations | Brand films, product demos, explainers, ads for desktop |
+| `9:16` | Portrait (vertical) | 1080 × 1920 px | TikTok, Instagram Reels, YouTube Shorts, Snapchat | Short-form social content, mobile-first ads, story ads |
+| `1:1` | Square | 1080 × 1080 px | Instagram feed, Facebook feed, Twitter/X, display ads | Feed ads, product showcases, thumbnails, cross-platform content |
+
+## Visual guidance by content type
+
+Choosing the right ratio isn't just about the platform — it's about how different subjects fill the frame.
+
+**`16:9` — Widescreen**
+Widescreen gives you horizontal real estate for scenery, group shots, and compositions with strong left-right movement. It's the natural fit for cinematic storytelling, where wide establishing shots and lateral camera movement feel intentional. Product demos that show a full environment (a laptop on a desk, a car on a road) benefit from the breathing room 16:9 provides.
+
+**`9:16` — Vertical**
+Vertical video is designed for a phone held upright, which is how most people consume short-form content. It pushes subjects close and tall — great for faces, single products, and scenes with strong vertical lines (buildings, trees, a person standing). If your content is social-first and your audience is mobile, `9:16` is almost always the right call.
+
+**`1:1` — Square**
+Square sits in the middle ground: wider than vertical but not as expansive as widescreen. It works especially well for product shots where you want the object centered and prominent without the distraction of a wide environment. Square also adapts gracefully across feed placements on platforms that resize content dynamically.
+
+## Set aspect ratio in the API and SDK
+
+Pass your chosen ratio as the `aspect_ratio` parameter in your generation request:
+
+```bash curl
+curl -X POST https://api.techblazing.com/v1/generations \
+  -H "Authorization: Bearer $TECHBLAZING_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A product rotating on a clean white surface, soft studio lighting",
+    "style": "realistic",
+    "aspect_ratio": "9:16",
+    "duration": 8
+  }'
+```
+
+```javascript Node.js
+const generation = await client.generations.create({
+  prompt: 'A product rotating on a clean white surface, soft studio lighting',
+  style: 'realistic',
+  aspect_ratio: '9:16',
+  duration: 8,
+});
+```
+
+```python Python
+generation = client.generations.create(
+    prompt='A product rotating on a clean white surface, soft studio lighting',
+    style='realistic',
+    aspect_ratio='9:16',
+    duration=8,
+)
+```
+
+<Tip>
+  If you're publishing to multiple platforms, generate the same prompt at each ratio in separate requests. Because TechBlazing generates natively at each ratio rather than cropping, you'll get properly composed shots for each context — not a cropped version of one master output. This is especially important for `9:16` vs. `16:9`, where the compositional framing differs significantly.
+</Tip>
+
+<Note>
+  When using [image-to-video](/guides/image-to-video) with an `input_asset_id`, if your source image doesn't match the target aspect ratio, TechBlazing will automatically crop and reframe the image to fit the output ratio. The crop prioritizes the visual center of mass of the image. For best results, upload source images that already match your intended output ratio, or use images with the main subject centered.
+</Note>

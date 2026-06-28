@@ -1,0 +1,62 @@
+---
+title: "How TechBlazing AI Video Generation Works"
+sidebarTitle: "How It Works"
+description: "Understand how TechBlazing transforms text prompts, images, and scripts into video using AI — from input to finished MP4 output."
+---
+
+TechBlazing takes your creative input — a text description, a reference image, or a full script — and runs it through a multi-stage AI pipeline that produces a polished, ready-to-use MP4 video. Understanding how this pipeline works helps you craft better inputs, choose the right settings, and build reliable integrations.
+
+## The Generation Pipeline
+
+Every video you generate passes through the same core stages: your input is interpreted by a large multimodal AI model, which then drives a frame-synthesis engine that renders each moment of the video before packaging the result for delivery.
+
+**Input interpretation** is the first stage. The AI model reads your prompt, image, or script and builds an internal semantic representation of the scene — including subjects, motion, lighting, mood, and pacing. The richer your input, the more precisely the model can lock onto your intent.
+
+**Frame synthesis** follows. The model generates individual frames at the target resolution, applying temporal consistency so that objects, characters, and backgrounds remain coherent from one frame to the next. This is computationally intensive, which is why generations run asynchronously in the cloud rather than returning a response inline.
+
+**Rendering and encoding** is the final stage. The synthesized frames are composited, color-graded according to your chosen style, and encoded into an H.264 MP4 file at your requested aspect ratio and quality tier.
+
+## How Input Types Shape the Output
+
+TechBlazing accepts three distinct input types, each of which guides the AI model differently:
+
+- **Text prompts** give the model maximum creative freedom. The model infers every visual detail from your words, making prompt quality especially important.
+- **Reference images** act as a visual anchor. The model inherits composition, color palette, and subject matter from the image, then animates or extends it based on any accompanying text.
+- **Scripts** introduce a narrative timeline. The model sequences visuals to match the flow of your narration, and TechBlazing can generate a voiceover track from the script text automatically.
+
+You can combine input types — for example, pairing a reference image with a text prompt — to get precise visual grounding with descriptive creative direction layered on top.
+
+## The Role of Style Settings
+
+The `style` parameter tells the rendering engine which visual aesthetic to target during color grading, texture synthesis, and motion design. TechBlazing supports four styles:
+
+- **Realistic** — photographic fidelity, natural lighting
+- **Cinematic** — film-like color grading, dramatic depth of field
+- **Animated** — fluid, stylized motion with vivid colors
+- **Illustrated** — painterly or graphic-novel aesthetics
+
+Choosing the right style early matters because it influences not just the look but also how the model interprets ambiguous details in your prompt. A scene described as "a forest at night" will feel very different rendered as `cinematic` versus `animated`.
+
+## Generation Flow
+
+<Steps>
+  <Step title="Input">
+    You submit a text prompt, reference image asset, or script — along with style, duration, and aspect ratio settings — via the REST API or dashboard.
+  </Step>
+  <Step title="Queue">
+    TechBlazing accepts the request and creates a Generation object with status `queued`. The job enters the processing queue.
+  </Step>
+  <Step title="Process">
+    The AI model interprets your input and generates a frame-by-frame blueprint of the video. Status transitions to `processing`.
+  </Step>
+  <Step title="Render">
+    The frame synthesis engine renders and encodes the video to MP4 at your chosen resolution and quality tier.
+  </Step>
+  <Step title="Deliver">
+    The Generation object status transitions to `completed` and `output_url` is populated with a time-limited download link for your finished video.
+  </Step>
+</Steps>
+
+<Info>
+  Video generation is **asynchronous**. The API returns a Generation object immediately after you submit a request, but the video itself is not ready yet. You need to poll `GET /v1/generations/{id}` — or listen for a webhook event — until the status reaches `completed` or `failed`. Typical generation times range from **30 to 90 seconds** depending on duration, resolution, and current queue depth.
+</Info>

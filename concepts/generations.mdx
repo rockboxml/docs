@@ -1,0 +1,160 @@
+---
+title: "Understanding Generations in TechBlazing"
+sidebarTitle: "Generations"
+description: "A generation is the core resource in TechBlazing — learn about generation lifecycle, status values, and how to work with generation objects."
+---
+
+A **generation** is the fundamental resource in TechBlazing. Every time you request a video — whether from a text prompt, a reference image, or a script — the API creates a generation object and returns it immediately. That object tracks your job from the moment it enters the queue through processing and rendering, all the way to a completed video file or a descriptive error. Understanding how generations work is the foundation for building any integration on top of TechBlazing.
+
+## The Generation Object
+
+<ResponseField name="id" type="string" required>
+  A unique identifier for the generation, prefixed with `gen_`. Use this ID to poll for status updates and retrieve the finished video.
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  The current state of the generation. One of:
+  - `queued` — the request has been accepted and is waiting for a processing slot
+  - `processing` — the AI model is actively generating frames
+  - `completed` — the video is ready and `output_url` is populated
+  - `failed` — generation was not successful; see the `error` field for details
+</ResponseField>
+
+<ResponseField name="prompt" type="string" required>
+  The text prompt submitted with the generation request. Present for all input types; contains an auto-generated description when only a reference image is provided.
+</ResponseField>
+
+<ResponseField name="style" type="string" required>
+  The visual style applied to the generation. One of `realistic`, `cinematic`, `animated`, or `illustrated`.
+</ResponseField>
+
+<ResponseField name="duration" type="integer" required>
+  The requested video duration in seconds. Between `5` and `60`.
+</ResponseField>
+
+<ResponseField name="aspect_ratio" type="string" required>
+  The aspect ratio of the output video. One of `16:9`, `9:16`, or `1:1`.
+</ResponseField>
+
+<ResponseField name="output_url" type="string">
+  A time-limited HTTPS URL to the rendered MP4 file. Only present when `status` is `completed`. This URL expires **24 hours** after the generation completes.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  A human-readable description of why the generation failed. Only present when `status` is `failed`.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+  ISO 8601 timestamp recording when the generation was created.
+
+  Example: `"2024-09-15T10:32:00Z"`
+</ResponseField>
+
+<ResponseField name="completed_at" type="string">
+  ISO 8601 timestamp recording when the generation reached a terminal status (`completed` or `failed`). `null` if the generation is still in progress.
+
+  Example: `"2024-09-15T10:33:12Z"`
+</ResponseField>
+
+## Generation Lifecycle
+
+Every generation moves through a defined sequence of statuses. Understanding the transitions helps you handle each state correctly in your application.
+
+```
+queued → processing → completed
+                    ↘ failed
+```
+
+| Status | Meaning | Next status |
+|---|---|---|
+| `queued` | Request accepted; waiting for a processing slot | `processing` |
+| `processing` | AI model is generating and rendering frames | `completed` or `failed` |
+| `completed` | Video is ready; `output_url` is populated | — (terminal) |
+| `failed` | An error occurred; `error` field describes the cause | — (terminal) |
+
+A generation that reaches `completed` or `failed` will not change status again. If a generation fails, create a new generation request — generations cannot be retried in place.
+
+## Polling for Status
+
+Because generation is asynchronous, you need to check the status of a generation after submitting it. Use the `GET /v1/generations/{id}` endpoint to retrieve the latest state of a generation object.
+
+```
+GET https://api.techblazing.com/v1/generations/{id}
+```
+
+Poll at a reasonable interval — **every 5 seconds** is a good starting point for most use cases. Avoid polling more frequently than once per second, as excessive requests may be rate-limited.
+
+<Note>
+  `output_url` expires **24 hours** after the generation completes. Do not use this URL as a permanent link to your video. Download the MP4 file and store it in your own storage as soon as the generation finishes.
+</Note>
+
+### Polling Example
+
+The following JavaScript example submits a generation request and then polls until the video is ready or the generation fails.
+
+```javascript
+const API_KEY = "your_api_key_here";
+const BASE_URL = "https://api.techblazing.com/v1";
+
+async function createGeneration(prompt, style = "cinematic") {
+  const response = await fetch(`${BASE_URL}/generations`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt,
+      style,
+      duration: 15,
+      aspect_ratio: "16:9",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create generation: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+async function pollGeneration(generationId, intervalMs = 5000) {
+  while (true) {
+    const response = await fetch(`${BASE_URL}/generations/${generationId}`, {
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch generation: ${response.statusText}`);
+    }
+
+    const generation = await response.json();
+    console.log(`Status: ${generation.status}`);
+
+    if (generation.status === "completed") {
+      console.log(`Video ready: ${generation.output_url}`);
+      return generation;
+    }
+
+    if (generation.status === "failed") {
+      throw new Error(`Generation failed: ${generation.error}`);
+    }
+
+    // Still queued or processing — wait before polling again
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
+// Usage
+const generation = await createGeneration(
+  "A timelapse of storm clouds gathering over a mountain range at sunset"
+);
+
+console.log(`Generation created: ${generation.id}`);
+const completed = await pollGeneration(generation.id);
+
+// Download and store the video before output_url expires
+console.log(`Download your video from: ${completed.output_url}`);
+```

@@ -1,0 +1,175 @@
+---
+title: "Troubleshoot Common TechBlazing API Issues"
+sidebarTitle: "Troubleshooting"
+description: "Diagnose and fix common TechBlazing API errors including authentication failures, rate limits, failed generations, and slow response times."
+---
+
+Most TechBlazing API problems fall into a small number of categories — authentication issues, rate limiting, generation failures, and asset access errors. This page walks you through diagnosing each one. Expand the relevant section below to see the cause, what to check, and how to resolve it.
+
+<AccordionGroup>
+
+  <Accordion title="401 Unauthorized">
+    A `401` response means TechBlazing could not authenticate your request. This is almost always a problem with the API key itself or how it is formatted in the request.
+
+    **What to check:**
+
+    - **Key format** — Confirm your `Authorization` header is formatted exactly as `Bearer <YOUR_API_KEY>` with a single space between `Bearer` and the key. Do not include extra characters, quotes, or newlines.
+    - **Correct key** — Double-check that you are using the right key for the right environment (e.g. not a test key in production or vice versa).
+    - **Key expiry** — Open the [TechBlazing dashboard](https://app.techblazing.com) under **Settings → API Keys** and confirm the key has not expired or been revoked. If it has, generate a new one and update your environment variable.
+    - **Environment variable** — If you rely on `TECHBLAZING_API_KEY`, verify that the variable is actually set in the process running your code (`echo $TECHBLAZING_API_KEY` in the terminal, or print it at startup before the client is initialized).
+
+    **Example of a correctly formatted header:**
+
+    ```http
+    Authorization: Bearer tbk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    A `403` response means your request was authenticated successfully but your API key does not have permission to perform the requested action.
+
+    **What to check:**
+
+    - **Key scope** — Some API keys are created with restricted scopes (e.g. read-only). If you are trying to create or cancel a generation, your key needs write access. Go to **Settings → API Keys** in the dashboard and check the permissions assigned to your key.
+    - **Resource ownership** — You can only access resources (generations, assets) that belong to your account. Attempting to retrieve or delete another account's resource returns a `403`.
+    - **Plan restrictions** — Certain endpoints or features may be restricted to specific plans. Check your plan limits in the dashboard under **Billing**.
+
+    If you need broader permissions, either update the key's scope or generate a new key with the correct permissions.
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    A `429` response means you have exceeded your plan's rate limit. TechBlazing enforces both per-minute and per-day request limits depending on your plan tier.
+
+    **What to check:**
+
+    - **Retry-After header** — The `429` response includes a `Retry-After` header with the number of seconds to wait before retrying. Always honour this value.
+    - **Plan limits** — Review the rate limits for your plan in the dashboard under **Billing → Plan**. If you regularly hit the limit, consider upgrading or reaching out about a higher-volume plan.
+    - **Request volume** — If you are running batch jobs, throttle your requests to stay within the limits. For example, process items sequentially or use a queue with a concurrency cap.
+
+    **Implementing exponential back-off:**
+
+    ```javascript Node.js
+    async function createWithRetry(params, maxRetries = 5) {
+      let delay = 1000; // start with 1 second
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          return await client.generations.create(params);
+        } catch (error) {
+          if (error.status === 429 && attempt < maxRetries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            delay *= 2; // double the delay each time
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Generation stuck in processing">
+    Generations typically complete within 30 seconds to 3 minutes, depending on the duration, style, and current platform load. If a generation has been in `"processing"` status for longer than 10 minutes, it may be stalled.
+
+    **What to check:**
+
+    - **Typical processing times** — Short clips (under 5 seconds) usually complete in under a minute. Longer or higher-complexity generations can take several minutes. Check the [TechBlazing status page](https://status.techblazing.com) to see if there is an active incident affecting generation times.
+    - **Re-fetch the status** — Confirm you are polling `generations.retrieve(id)` rather than relying on a cached response.
+
+    **How to cancel and retry:**
+
+    If you decide the job is stalled, cancel it and submit a fresh request:
+
+    ```javascript Node.js
+    await client.generations.cancel('gen_abc123');
+
+    const newGeneration = await client.generations.create({
+      prompt: 'A sunset over the ocean',
+      style: 'cinematic',
+    });
+    ```
+
+    If you continue to see stalled generations, contact [TechBlazing support](mailto:support@techblazing.com) with the affected generation IDs.
+  </Accordion>
+
+  <Accordion title="Generation failed with error">
+    When a generation's `status` is `"failed"`, the `error` field on the `Generation` object contains a human-readable message explaining what went wrong.
+
+    **Reading the error field:**
+
+    ```javascript Node.js
+    const generation = await client.generations.retrieve('gen_abc123');
+
+    if (generation.status === 'failed') {
+      console.error(generation.error);
+    }
+    ```
+
+    **Common error messages and their causes:**
+
+    | Error message                        | Likely cause                                                                  |
+    | ------------------------------------ | ----------------------------------------------------------------------------- |
+    | `"Prompt contains prohibited content"` | Your prompt triggered the content policy filter. Revise the prompt.           |
+    | `"Input asset not found"`             | The asset ID referenced in the request no longer exists. Re-upload the file.  |
+    | `"Unsupported aspect ratio"`          | The `aspect_ratio` value is not supported. Use `"16:9"`, `"9:16"`, or `"1:1"`. |
+    | `"Duration exceeds plan limit"`       | Your plan has a maximum clip duration. Reduce the `duration` parameter.       |
+    | `"Internal model error"`              | A transient server-side failure. Wait a moment and retry.                     |
+
+    For persistent failures that are not explained by the above, contact support with the generation ID.
+  </Accordion>
+
+  <Accordion title="output_url returns 403">
+    TechBlazing output URLs are temporary signed URLs that expire **24 hours** after the generation completes. Attempting to access an expired URL returns a `403 Forbidden` error from the CDN.
+
+    **How to handle this:**
+
+    - **Download promptly** — As soon as you receive `generation.completed` (via webhook or polling), download the video to your own storage. Do not rely on the TechBlazing URL as a permanent link.
+    - **Re-fetch the generation** — If the URL has expired, call `client.generations.retrieve(id)` again. TechBlazing refreshes the signed URL on each retrieval, giving you another 24-hour window to download the file.
+
+    ```javascript Node.js
+    const generation = await client.generations.retrieve('gen_abc123');
+    // output_url is now refreshed — download within 24 hours
+    console.log(generation.output_url);
+    ```
+  </Accordion>
+
+  <Accordion title="Webhook not receiving events">
+    If your webhook endpoint is registered but not receiving events, work through the following checklist.
+
+    **What to check:**
+
+    - **Endpoint URL** — Confirm the URL saved in the dashboard is exactly correct, including the path. A single typo will silently drop all deliveries.
+    - **HTTPS required** — TechBlazing only delivers webhooks to endpoints with a valid HTTPS certificate. HTTP endpoints are not supported in production.
+    - **Firewall and networking** — Ensure your server's firewall allows inbound POST requests from TechBlazing's IP ranges. If you are running a local development server, use a tunnelling tool like [ngrok](https://ngrok.com) to expose it to the internet:
+
+      ```bash
+      ngrok http 3000
+      ```
+
+      Then update your webhook URL in the dashboard with the ngrok HTTPS URL.
+
+    - **Response code** — TechBlazing expects a `200` response within 5 seconds. If your endpoint returns any other status code or times out, TechBlazing marks the delivery as failed. Check your server logs for errors in your handler.
+    - **Delivery logs** — In the dashboard under **Settings → Webhooks**, click on your endpoint to see a delivery history with status codes and response times.
+    - **Use Send test event** — Click **Send test event** in the dashboard to trigger an immediate test delivery and see the response from your server in real time.
+  </Accordion>
+
+  <Accordion title="Low quality or unexpected output">
+    If your generated videos look different from what you expected, the issue is usually with the prompt, style selection, or the mismatch between input and output settings.
+
+    **Prompt improvement tips:**
+
+    - Be specific and descriptive. Instead of `"a city at night"`, try `"an aerial shot of a neon-lit city at night, rain-slicked streets reflecting colored signs, shallow depth of field"`.
+    - Describe camera motion explicitly if it matters: `"slow dolly forward"`, `"static wide shot"`, `"handheld close-up"`.
+    - Avoid contradictory instructions (e.g. `"bright and moody"`) — pick one clear aesthetic direction.
+
+    **Style mismatch:**
+
+    - Confirm the `style` value you are passing is a supported preset. An unsupported or misspelled style may fall back to a default that does not match your intent.
+    - Some styles work better with certain subject matter. For example, `"anime"` is optimized for stylized character animation and may produce unexpected results with photorealistic landscape prompts.
+
+    **Resolution checks:**
+
+    - The output resolution is determined by your plan tier and the `aspect_ratio` you specify. If the output resolution is lower than expected, check your plan's resolution limits in the dashboard under **Billing → Plan**.
+    - If you provide a reference image, ensure it is high-resolution. Uploading a low-resolution input constrains the quality of the output.
+  </Accordion>
+
+</AccordionGroup>

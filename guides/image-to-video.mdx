@@ -1,0 +1,160 @@
+---
+title: "Animate Images into Video with TechBlazing"
+sidebarTitle: "Image to Video"
+description: "Upload a reference image to TechBlazing and generate a video that animates or extends it. Includes upload, generation, and retrieval examples."
+---
+
+Image-to-video lets you bring a still image to life by using it as the visual foundation for a generated video. Whether you're animating a product shot, adding motion to a portrait, or turning a landscape photo into a cinematic scene, TechBlazing uses your uploaded image as a visual anchor and generates natural, coherent movement around it.
+
+<Steps>
+  <Step title="Upload your reference image">
+    Send a `POST` request to `/v1/assets` using `multipart/form-data`. The API returns an asset object containing the `id` you'll pass into your generation request.
+
+    **Image requirements:**
+    - **Formats:** JPEG, PNG, or WebP
+    - **Max file size:** 10 MB
+    - **Minimum dimensions:** 512 × 512 px
+    - **Recommended:** Use images with a clear subject and uncluttered background for best animation results
+
+    <CodeGroup>
+      ```bash curl
+      curl -X POST https://api.techblazing.com/v1/assets \
+        -H "Authorization: Bearer $TECHBLAZING_API_KEY" \
+        -F "file=@product-shot.jpg"
+      ```
+
+      ```javascript Node.js
+      import TechBlazing from '@techblazing/sdk';
+      import { createReadStream } from 'fs';
+
+      const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+      const asset = await client.assets.upload({
+        file: createReadStream('./product-shot.jpg'),
+        filename: 'product-shot.jpg',
+      });
+
+      console.log('Asset ID:', asset.id);
+      console.log('Asset URL:', asset.url);
+      // { id: 'ast_xyz789', url: '...', content_type: 'image/jpeg', size: 204800 }
+      ```
+
+      ```python Python
+      import os
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+      with open('./product-shot.jpg', 'rb') as f:
+          asset = client.assets.upload(file=f, filename='product-shot.jpg')
+
+      print('Asset ID:', asset.id)
+      print('Asset URL:', asset.url)
+      # id='ast_xyz789', url='...', content_type='image/jpeg', size=204800
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Use the asset ID in your generation request">
+    Pass the `id` returned from the asset upload as `input_asset_id` in your generation request. TechBlazing will use your image as the visual reference when generating the video.
+
+    <CodeGroup>
+      ```bash curl
+      curl -X POST https://api.techblazing.com/v1/generations \
+        -H "Authorization: Bearer $TECHBLAZING_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "prompt": "The product gently rotates, soft studio lighting, clean white background, slow and smooth motion",
+          "input_asset_id": "ast_xyz789",
+          "style": "realistic",
+          "aspect_ratio": "1:1",
+          "duration": 8
+        }'
+      ```
+
+      ```javascript Node.js
+      import TechBlazing from '@techblazing/sdk';
+
+      const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+      const generation = await client.generations.create({
+        prompt: 'The product gently rotates, soft studio lighting, clean white background, slow and smooth motion',
+        input_asset_id: 'ast_xyz789',
+        style: 'realistic',
+        aspect_ratio: '1:1',
+        duration: 8,
+      });
+
+      console.log('Generation ID:', generation.id);
+      ```
+
+      ```python Python
+      import os
+      from techblazing import TechBlazing
+
+      client = TechBlazing(api_key=os.environ['TECHBLAZING_API_KEY'])
+
+      generation = client.generations.create(
+          prompt='The product gently rotates, soft studio lighting, clean white background, slow and smooth motion',
+          input_asset_id='ast_xyz789',
+          style='realistic',
+          aspect_ratio='1:1',
+          duration=8,
+      )
+
+      print('Generation ID:', generation.id)
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Add a motion prompt to guide the animation">
+    The `prompt` field doubles as your motion direction when using an input image. Use it to describe how you want the scene to move — camera behavior, subject motion, atmospheric effects, and pacing all respond to prompt guidance.
+
+    Motion prompt tips:
+    - **Camera movement:** `slow push-in`, `gentle orbit`, `subtle zoom out`, `pan left`
+    - **Subject motion:** `hair blowing in the wind`, `eyes slowly blinking`, `leaves rustling`
+    - **Atmosphere:** `light rays shifting`, `steam rising`, `bokeh particles drifting`
+    - **Pacing:** `slow motion`, `real-time`, `time lapse`
+
+    Example: `"Camera slowly orbits the subject, warm afternoon light shifts softly, gentle lens flare, cinematic and serene"`
+  </Step>
+
+  <Step title="Poll and retrieve the output">
+    Poll `GET /v1/generations/{id}` until `status` is `completed`, then download the video from `output_url`.
+
+    ```javascript Node.js
+    import TechBlazing from '@techblazing/sdk';
+
+    const client = new TechBlazing({ apiKey: process.env.TECHBLAZING_API_KEY });
+
+    async function waitForCompletion(generationId) {
+      while (true) {
+        const generation = await client.generations.retrieve(generationId);
+
+        if (generation.status === 'completed') {
+          console.log('Done! Output URL:', generation.output_url);
+          return generation;
+        }
+
+        if (generation.status === 'failed') {
+          throw new Error(`Generation failed: ${generation.error}`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    }
+
+    await waitForCompletion('gen_abc123');
+    ```
+
+    The `output_url` is valid for 24 hours. Download and store the file in your own storage for long-term access.
+  </Step>
+</Steps>
+
+<Note>
+  TechBlazing uses your uploaded image as a **visual anchor** — the model inherits colors, composition, and subject appearance from it. It does not reproduce the image frame-for-frame. The AI generates new motion and occasionally reinterprets fine details to produce natural, fluid animation.
+</Note>
+
+<Warning>
+  Only upload images you have the legal right to use. Do not upload copyrighted photography, artwork, or brand assets without proper licensing or explicit permission from the rights holder. TechBlazing's [Terms of Service](https://techblazing.com/terms) prohibit generating content from images you do not own or have rights to.
+</Warning>

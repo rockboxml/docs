@@ -1,0 +1,100 @@
+---
+title: "Authenticate with the TechBlazing API"
+sidebarTitle: "Authentication"
+description: "TechBlazing uses API keys for authentication. Learn how to generate your API key, pass it in requests, and handle auth errors."
+---
+
+Every request to the TechBlazing API must be authenticated with an API key. You pass your key as a Bearer token in the `Authorization` header. There are no session cookies or OAuth flows — every call is stateless and self-contained, which keeps integration straightforward.
+
+## Getting your API key
+
+API keys are managed in the TechBlazing dashboard. To create one:
+
+1. Sign in to your account and open the [TechBlazing dashboard](https://techblazing.com/dashboard).
+2. Navigate to **Settings → API Keys**.
+3. Click **Create Key**.
+4. Enter a descriptive name for the key (for example, `production-backend` or `dev-local`) and select the appropriate scope.
+5. Click **Generate** and copy the key immediately. TechBlazing will only show the full key once — if you lose it, you'll need to rotate it and create a new one.
+
+You can create multiple keys for different environments or services and revoke any of them individually from the same page.
+
+## Using your API key
+
+Include your API key as a `Bearer` token in the `Authorization` header of every request.
+
+<CodeGroup>
+  ```bash curl
+  curl --request POST \
+    --url https://api.techblazing.com/v1/generations \
+    --header "Authorization: Bearer $TECHBLAZING_API_KEY" \
+    --header "Content-Type: application/json" \
+    --data '{
+      "mode": "text-to-video",
+      "prompt": "A timelapse of a city skyline at dusk",
+      "aspect_ratio": "16:9"
+    }'
+  ```
+
+  ```javascript Node.js
+  import TechBlazing from "techblazing";
+
+  const client = new TechBlazing({
+    apiKey: process.env.TECHBLAZING_API_KEY,
+  });
+
+  // The SDK attaches the Authorization header automatically.
+  const generation = await client.generations.create({
+    mode: "text-to-video",
+    prompt: "A timelapse of a city skyline at dusk",
+    aspect_ratio: "16:9",
+  });
+  ```
+
+  ```python Python
+  import os
+  from techblazing import TechBlazing
+
+  client = TechBlazing(api_key=os.environ["TECHBLAZING_API_KEY"])
+
+  # The SDK attaches the Authorization header automatically.
+  generation = client.generations.create(
+      mode="text-to-video",
+      prompt="A timelapse of a city skyline at dusk",
+      aspect_ratio="16:9",
+  )
+  ```
+</CodeGroup>
+
+When you use an official TechBlazing SDK, the client handles the `Authorization` header for you after you pass the key at initialization.
+
+## Keeping your API key secure
+
+Your API key grants full access to your TechBlazing account up to its scope. Treat it like a password.
+
+- **Use environment variables.** Store your key in an environment variable such as `TECHBLAZING_API_KEY` and read it at runtime. Never hard-code the key value directly in your source files.
+- **Keep keys out of version control.** Add `.env` files to your `.gitignore`. If you accidentally commit a key, revoke it immediately from the dashboard and generate a new one.
+- **Use separate keys per environment.** Create distinct keys for development, staging, and production so you can revoke one without affecting the others.
+- **Rotate keys regularly.** Periodically replace your keys, especially after team member offboarding or a suspected exposure event.
+- **Restrict scope.** When a read-only key is sufficient, use one. Avoid granting broader permissions than necessary.
+
+<Warning>
+  Never expose your API key in client-side code — including browser JavaScript, mobile apps, or any code that ships to end users. Any user who can read your source or inspect network requests would be able to use your key to generate videos charged to your account. Always proxy API calls through your own backend server.
+</Warning>
+
+## API key scopes
+
+TechBlazing supports two scopes that you select when creating a key:
+
+| Scope | Permissions |
+|---|---|
+| **Read-only** | Retrieve generation status, list past generations, and download output videos. Cannot create new generations or upload assets. |
+| **Read-write** | Full API access: create generations, upload assets, retrieve results, and manage webhooks. |
+
+Use read-only keys for dashboards, reporting tools, or any service that only needs to inspect existing data. Use read-write keys for backend services that create and manage generations.
+
+## Authentication error reference
+
+| Status code | Error | Cause |
+|---|---|---|
+| `401 Unauthorized` | `missing_api_key` | The `Authorization` header is absent or malformed. Check that you are including `Bearer <YOUR_API_KEY>` in every request. |
+| `403 Forbidden` | `insufficient_scope` | The API key provided does not have the scope required for this operation. For example, a read-only key was used to create a generation. Create or switch to a read-write key. |

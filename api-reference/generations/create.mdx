@@ -1,0 +1,145 @@
+---
+title: "POST /v1/generations — Create a Video Generation"
+sidebarTitle: "Create Generation"
+description: "POST /v1/generations — Submit a new AI video generation request. Accepts prompt, style, aspect_ratio, duration, and optional asset inputs."
+---
+
+Submit a new AI video generation request by providing a text prompt and optional configuration parameters. TechBlazing queues your request immediately and begins processing as soon as resources are available. The response returns a Generation object with a `status` of `queued` — use polling or webhooks to track progress through to completion.
+
+## Endpoint
+
+```
+POST https://api.techblazing.com/v1/generations
+```
+
+## Request Parameters
+
+<ParamField body="prompt" type="string" required>
+  A text description of the video you want to generate. Be as specific as possible — include details about subject, setting, lighting, camera angle, and mood. Maximum 2000 characters.
+</ParamField>
+
+<ParamField body="style" type="string" default="realistic">
+  The visual style applied to the generated video. Accepted values:
+
+  | Value         | Description                                      |
+  |---------------|--------------------------------------------------|
+  | `realistic`   | Photorealistic imagery with natural motion       |
+  | `cinematic`   | Film-like aesthetic with dramatic framing        |
+  | `animated`    | Smooth 3D animation style                        |
+  | `illustrated` | Hand-drawn or painterly 2D illustration style    |
+</ParamField>
+
+<ParamField body="aspect_ratio" type="string" default="16:9">
+  The aspect ratio of the output video. Accepted values: `16:9` (landscape), `9:16` (portrait/vertical), `1:1` (square).
+</ParamField>
+
+<ParamField body="duration" type="integer" default="15">
+  The length of the generated video in seconds. Must be an integer between `5` and `60` (inclusive).
+</ParamField>
+
+<ParamField body="quality" type="string" default="standard">
+  The output resolution and encoding quality. `standard` renders at 720p; `hd` renders at 1080p and uses more processing credits.
+</ParamField>
+
+<ParamField body="input_asset_id" type="string">
+  The ID of a previously uploaded image asset to use as a visual reference or starting frame. Retrieve asset IDs from the Assets API. When provided, the generation uses your image as a style or composition anchor.
+</ParamField>
+
+<ParamField body="script" type="string">
+  A narration script for voiceover generation. When provided, TechBlazing synthesizes a voiceover track and mixes it into the final video. The script is rendered in the default voice unless you specify a voice via the `voice_id` parameter.
+</ParamField>
+
+<ParamField body="webhook_url" type="string">
+  A publicly accessible HTTPS URL that TechBlazing calls with a `POST` request when the generation reaches a terminal state (`completed` or `failed`). The request body is the full Generation object. If delivery fails, TechBlazing retries up to three times with exponential backoff.
+</ParamField>
+
+## Response
+
+Returns a [Generation object](/api-reference/generations/retrieve) with `status: "queued"`. The `output_url` field is `null` until the generation completes.
+
+```json
+{
+  "id": "gen_01H9K7XVMZQ3P4R5T6Y8W",
+  "object": "generation",
+  "status": "queued",
+  "prompt": "A cinematic shot of a mountain at golden hour, wide angle, dramatic lighting",
+  "style": "cinematic",
+  "aspect_ratio": "16:9",
+  "duration": 15,
+  "quality": "hd",
+  "input_asset_id": null,
+  "script": null,
+  "output_url": null,
+  "error": null,
+  "created_at": "2024-07-01T14:23:00Z",
+  "completed_at": null
+}
+```
+
+## Code Examples
+
+<CodeGroup>
+
+```bash curl
+curl --request POST \
+  --url https://api.techblazing.com/v1/generations \
+  --header 'Authorization: Bearer <API_KEY>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "prompt": "A cinematic shot of a mountain at golden hour, wide angle, dramatic lighting",
+    "style": "cinematic",
+    "aspect_ratio": "16:9",
+    "duration": 15,
+    "quality": "hd"
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('https://api.techblazing.com/v1/generations', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <API_KEY>',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'A cinematic shot of a mountain at golden hour, wide angle, dramatic lighting',
+    style: 'cinematic',
+    aspect_ratio: '16:9',
+    duration: 15,
+    quality: 'hd',
+  }),
+});
+
+const generation = await response.json();
+console.log(generation.id);    // gen_01H9K7XVMZQ3P4R5T6Y8W
+console.log(generation.status); // queued
+```
+
+```python Python
+import httpx
+
+response = httpx.post(
+    'https://api.techblazing.com/v1/generations',
+    headers={
+        'Authorization': 'Bearer <API_KEY>',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'prompt': 'A cinematic shot of a mountain at golden hour, wide angle, dramatic lighting',
+        'style': 'cinematic',
+        'aspect_ratio': '16:9',
+        'duration': 15,
+        'quality': 'hd',
+    },
+)
+
+generation = response.json()
+print(generation['id'])     # gen_01H9K7XVMZQ3P4R5T6Y8W
+print(generation['status']) # queued
+```
+
+</CodeGroup>
+
+<Note>
+  Generations always start with `status: "queued"` — the `output_url` is not available until the job reaches `status: "completed"`. To track progress, either [poll the Retrieve endpoint](/api-reference/generations/retrieve) every 5–10 seconds, or provide a `webhook_url` to receive an automatic notification when the generation finishes.
+</Note>

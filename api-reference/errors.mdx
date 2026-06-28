@@ -1,0 +1,158 @@
+---
+title: "TechBlazing API Error Codes and Handling"
+sidebarTitle: "Errors"
+description: "TechBlazing API error response format, HTTP status codes, error code reference, and best practices for error handling in your integration."
+---
+
+When a request cannot be completed, the TechBlazing API returns a consistent JSON error object regardless of the failure reason. Every error response uses the same shape, making it straightforward to write a single error-handling path in your integration rather than parsing different formats per status code.
+
+## Error Response Object
+
+All error responses carry an `error` object at the top level with four fields:
+
+<ResponseField name="error" type="object" required>
+  The top-level error container returned on all failed requests.
+
+  <Expandable title="error fields">
+    <ResponseField name="code" type="string" required>
+      A stable machine-readable identifier for the error type (e.g., `rate_limit_exceeded`). Use this field — not the HTTP status code or `message` — to drive programmatic error-handling logic.
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      A human-readable description of what went wrong. Messages may include context-specific detail (e.g., which parameter was invalid) and are intended for developers, not end users. Message text may change without notice; do not parse it programmatically.
+    </ResponseField>
+
+    <ResponseField name="param" type="string | null" required>
+      The name of the request parameter that caused the error, if applicable. `null` when the error is not attributable to a specific parameter.
+    </ResponseField>
+
+    <ResponseField name="type" type="string" required>
+      A broad category string grouping related error codes (e.g., `rate_limit_error`, `validation_error`, `authentication_error`). Useful for high-level branching when you don't need to handle individual codes.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example error response**
+
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "You have exceeded your request rate limit. Try again in 30 seconds.",
+    "param": null,
+    "type": "rate_limit_error"
+  }
+}
+```
+
+## Error Code Reference
+
+| HTTP Status | Code | Description | Recommended Action |
+|-------------|------|-------------|--------------------|
+| `400` | `bad_request` | One or more request parameters are missing, malformed, or have the wrong type. | Check `error.param` to identify the offending field. Fix the request before retrying. |
+| `401` | `unauthorized` | The `Authorization` header is missing or the API key is invalid. | Verify your API key. Rotate it if you suspect it was compromised. |
+| `403` | `forbidden` | The API key is valid but does not have permission to perform this action. | Check that your plan supports this feature. Contact support if you believe this is incorrect. |
+| `404` | `not_found` | The requested resource does not exist or has been deleted. | Confirm the resource ID is correct. Do not retry. |
+| `409` | `conflict` | The operation is not valid for the resource's current state — e.g., cancelling a generation that has already completed or failed. | Fetch the current resource state and branch your logic accordingly. |
+| `422` | `unprocessable_entity` | The request is syntactically valid but fails semantic validation — e.g., a prompt that violates content policy, or an incompatible combination of parameters. | Review the `error.message` for specific guidance and adjust your request. Do not retry unchanged. |
+| `429` | `rate_limit_exceeded` | You have sent too many requests in a given window. | Wait for the duration indicated in `error.message` or until `X-RateLimit-Reset`, then retry with exponential backoff. See [Rate Limits](/api-reference/rate-limits). |
+| `500` | `internal_error` | An unexpected error occurred on TechBlazing's servers. | Retry with exponential backoff. If the issue persists, contact support with the request ID from the response headers. |
+| `503` | `service_unavailable` | The API is temporarily unavailable due to maintenance or an outage. | Retry with exponential backoff. Monitor the [TechBlazing status page](https://status.techblazing.com) for updates. |
+
+## Error Handling Best Practices
+
+### Know what to retry
+
+Not all errors are worth retrying. Retrying on a client error wastes quota and can mask bugs in your integration.
+
+- **Retry:** `429 rate_limit_exceeded` and `503 service_unavailable`. These are transient conditions. Use exponential backoff with jitter and respect the `X-RateLimit-Reset` timestamp on 429s.
+- **Do not retry:** `400 bad_request`, `401 unauthorized`, `403 forbidden`, `404 not_found`, and `422 unprocessable_entity`. These indicate a problem with your request that will produce the same failure on every attempt until you change the input or fix your configuration.
+- **Retry with caution:** `500 internal_error`. A limited number of retries (e.g., 3 attempts with backoff) is reasonable, but if errors persist, open a support ticket instead of continuing to retry.
+
+### Log `error.code`, not `error.message`
+
+The `error.code` field is a stable, versioned identifier. The `error.message` text is intended for human readers and may be updated at any time. Always log and alert on `error.code` to keep your monitoring reliable across API updates.
+
+### Surface errors to your users carefully
+
+The raw `error.message` value is written for developers. Map error codes to user-friendly copy in your application rather than forwarding API messages directly to end users.
+
+## Code Examples
+
+The following examples show a complete request with structured error handling.
+
+<CodeGroup>
+
+```javascript Node.js
+async function createGeneration(prompt) {
+  const response = await fetch("https://api.techblazing.com/v1/generations", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer YOUR_API_KEY",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const body = await response.json();
+
+  if (!response.ok) {
+    const { code, message, param, type } = body.error;
+
+    switch (code) {
+      case "unauthorized":
+        throw new Error("Invalid API key. Check your credentials.");
+      case "rate_limit_exceeded":
+        // Caller should back off — see rate-limits guide for full retry logic
+        throw new Error(`Rate limit hit. Retry after ${response.headers.get("X-RateLimit-Reset")}.`);
+      case "unprocessable_entity":
+        throw new Error(`Validation failed${param ? ` on '${param}'` : ""}: ${message}`);
+      default:
+        // Log the code for debugging; surface a generic message to users
+        console.error(`TechBlazing API error [${code}]: ${message}`);
+        throw new Error("An unexpected error occurred. Please try again later.");
+    }
+  }
+
+  return body.data;
+}
+```
+
+```python Python
+import httpx
+
+def create_generation(prompt: str) -> dict:
+    response = httpx.post(
+        "https://api.techblazing.com/v1/generations",
+        headers={
+            "Authorization": "Bearer YOUR_API_KEY",
+            "Content-Type": "application/json",
+        },
+        json={"prompt": prompt},
+    )
+
+    body = response.json()
+
+    if response.is_error:
+        error = body["error"]
+        code = error["code"]
+        message = error["message"]
+        param = error.get("param")
+
+        if code == "unauthorized":
+            raise ValueError("Invalid API key. Check your credentials.")
+        elif code == "rate_limit_exceeded":
+            reset = response.headers.get("X-RateLimit-Reset")
+            raise RuntimeError(f"Rate limit hit. Retry after {reset}.")
+        elif code == "unprocessable_entity":
+            field = f" on '{param}'" if param else ""
+            raise ValueError(f"Validation failed{field}: {message}")
+        else:
+            # Log the stable code; don't parse the message
+            print(f"TechBlazing API error [{code}]: {message}")
+            raise RuntimeError("An unexpected error occurred. Please try again later.")
+
+    return body["data"]
+```
+
+</CodeGroup>

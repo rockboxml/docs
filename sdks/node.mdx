@@ -1,0 +1,235 @@
+---
+title: "TechBlazing Node.js SDK Reference"
+sidebarTitle: "Node.js SDK"
+description: "Install and use the TechBlazing Node.js SDK to generate AI videos, manage assets, and handle webhooks in your JavaScript or TypeScript project."
+---
+
+The TechBlazing Node.js SDK gives you a fully typed interface to the TechBlazing API in any JavaScript or TypeScript project. It handles authentication, request serialization, and response parsing so you can generate videos, manage assets, and react to webhook events with minimal boilerplate.
+
+## Installation
+
+Install the SDK with your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @techblazing/sdk
+```
+
+```bash yarn
+yarn add @techblazing/sdk
+```
+
+```bash pnpm
+pnpm add @techblazing/sdk
+```
+
+</CodeGroup>
+
+## Configuration
+
+Initialize the client once and reuse it throughout your application. The SDK reads your API key from the `TECHBLAZING_API_KEY` environment variable automatically if you don't pass it explicitly.
+
+```typescript
+import TechBlazing from '@techblazing/sdk';
+
+const client = new TechBlazing({
+  apiKey: process.env.TECHBLAZING_API_KEY,
+});
+```
+
+If you use TypeScript you can import the `Generation` and `Asset` types directly for stronger type safety:
+
+```typescript
+import TechBlazing, { Generation, Asset } from '@techblazing/sdk';
+```
+
+---
+
+## Generations
+
+### Create a generation
+
+Call `client.generations.create()` to submit a new video generation job. The method accepts the following parameters:
+
+| Parameter      | Type     | Required | Description                                                  |
+| -------------- | -------- | -------- | ------------------------------------------------------------ |
+| `prompt`       | `string` | Yes      | Text description of the video you want to generate.          |
+| `style`        | `string` | No       | Visual style preset (e.g. `"cinematic"`, `"anime"`).         |
+| `aspect_ratio` | `string` | No       | Output aspect ratio, e.g. `"16:9"` or `"9:16"`.             |
+| `duration`     | `number` | No       | Desired clip length in seconds.                              |
+
+```typescript
+const generation = await client.generations.create({
+  prompt: 'A time-lapse of a city skyline transitioning from dusk to dawn',
+  style: 'cinematic',
+  aspect_ratio: '16:9',
+  duration: 10,
+});
+
+console.log(generation.id);     // gen_abc123
+console.log(generation.status); // "processing"
+```
+
+### Retrieve a generation
+
+Fetch the current state of a generation by its ID. Poll this method until `status` is `"completed"` or `"failed"`.
+
+```typescript
+const generation = await client.generations.retrieve('gen_abc123');
+
+console.log(generation.status);     // "completed"
+console.log(generation.output_url); // "https://..."
+```
+
+### List generations
+
+Retrieve a paginated list of your generations. Use `limit` to control page size and `after` to cursor through results.
+
+```typescript
+const page = await client.generations.list({ limit: 20 });
+
+for (const generation of page.data) {
+  console.log(generation.id, generation.status);
+}
+
+// Fetch the next page
+if (page.has_more) {
+  const nextPage = await client.generations.list({
+    limit: 20,
+    after: page.data[page.data.length - 1].id,
+  });
+}
+```
+
+### Cancel a generation
+
+Cancel a generation that is still in `"processing"` status.
+
+```typescript
+const cancelled = await client.generations.cancel('gen_abc123');
+
+console.log(cancelled.status); // "cancelled"
+```
+
+---
+
+## Assets
+
+### Upload an asset
+
+Upload a local file (image or video) for use as input in a generation. Pass a readable stream alongside the filename and MIME type.
+
+```typescript
+import fs from 'fs';
+
+const asset = await client.assets.upload(
+  fs.createReadStream('./reference-image.jpg'),
+  {
+    filename: 'reference-image.jpg',
+    content_type: 'image/jpeg',
+  }
+);
+
+console.log(asset.id);  // ast_xyz789
+console.log(asset.url); // "https://..."
+```
+
+### Retrieve an asset
+
+```typescript
+const asset = await client.assets.retrieve('ast_xyz789');
+
+console.log(asset.filename);
+console.log(asset.url);
+```
+
+### Delete an asset
+
+```typescript
+const result = await client.assets.delete('ast_xyz789');
+
+console.log(result.deleted); // true
+```
+
+---
+
+## Error Handling
+
+The SDK throws a `TechBlazingError` for any non-2xx HTTP response. Check `error.status` for the HTTP status code and `error.code` for a machine-readable error code you can use in conditional logic.
+
+```typescript
+import TechBlazing, { TechBlazingError } from '@techblazing/sdk';
+
+const client = new TechBlazing({
+  apiKey: process.env.TECHBLAZING_API_KEY,
+});
+
+try {
+  const generation = await client.generations.create({
+    prompt: 'A sunset over the ocean',
+  });
+} catch (error) {
+  if (error instanceof TechBlazingError) {
+    console.error(`HTTP ${error.status} — ${error.code}: ${error.message}`);
+
+    if (error.status === 429) {
+      // Implement exponential back-off and retry
+    }
+  } else {
+    throw error;
+  }
+}
+```
+
+---
+
+## End-to-End Example
+
+The following example shows a complete workflow: uploading a reference image, creating a generation that uses it, polling until the job finishes, and logging the output URL.
+
+```typescript
+import TechBlazing, { TechBlazingError } from '@techblazing/sdk';
+import fs from 'fs';
+
+const client = new TechBlazing({
+  apiKey: process.env.TECHBLAZING_API_KEY,
+});
+
+async function main() {
+  // 1. Upload a reference image
+  console.log('Uploading reference image…');
+  const asset = await client.assets.upload(
+    fs.createReadStream('./reference.jpg'),
+    { filename: 'reference.jpg', content_type: 'image/jpeg' }
+  );
+  console.log(`Asset uploaded: ${asset.id}`);
+
+  // 2. Create a generation
+  console.log('Creating generation…');
+  const generation = await client.generations.create({
+    prompt: 'Animate this scene with gentle camera movement and cinematic lighting',
+    style: 'cinematic',
+    aspect_ratio: '16:9',
+    duration: 8,
+  });
+  console.log(`Generation created: ${generation.id} (${generation.status})`);
+
+  // 3. Poll until complete
+  let result = generation;
+  while (result.status === 'processing') {
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // wait 5 s
+    result = await client.generations.retrieve(generation.id);
+    console.log(`Status: ${result.status}`);
+  }
+
+  // 4. Log the output
+  if (result.status === 'completed') {
+    console.log(`✅ Output URL: ${result.output_url}`);
+  } else {
+    console.error(`❌ Generation failed: ${result.error}`);
+  }
+}
+
+main().catch(console.error);
+```

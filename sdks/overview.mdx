@@ -1,0 +1,33 @@
+---
+title: "TechBlazing SDKs and API Client Libraries"
+sidebarTitle: "Overview"
+description: "TechBlazing provides official Node.js and Python SDKs for easy API integration. Install, configure, and start generating videos in minutes."
+---
+
+TechBlazing provides official client libraries for Node.js and Python so you can integrate AI-powered video generation into your application without writing low-level HTTP code. Each SDK wraps the REST API, handles authentication, and surfaces strongly-typed responses so you can focus on building your product.
+
+<CardGroup cols={2}>
+  <Card title="Node.js SDK" icon="node-js" href="/sdks/node">
+    Use the `@techblazing/sdk` package in any JavaScript or TypeScript project. Supports Node.js 18 and above.
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdks/python">
+    Use the `techblazing` package in any Python application. Supports Python 3.8 and above.
+  </Card>
+</CardGroup>
+
+## SDK Comparison
+
+The table below gives you a quick overview of each library so you can pick the right one for your stack.
+
+| Language   | Package Name       | Install Command              | Minimum Version |
+| ---------- | ------------------ | ---------------------------- | --------------- |
+| Node.js    | `@techblazing/sdk` | `npm install @techblazing/sdk` | Node.js 18      |
+| Python     | `techblazing`      | `pip install techblazing`    | Python 3.8      |
+
+## Using the Raw REST API
+
+If neither SDK fits your stack, you can call the TechBlazing REST API directly. Every endpoint accepts and returns JSON, and authentication uses a standard Bearer token. See the [API Reference](/api-reference/overview) for full endpoint documentation, request schemas, and response examples.
+
+<Tip>
+  Store your API key in an environment variable — for example `TECHBLAZING_API_KEY` — rather than hard-coding it in your source code. Both SDKs read this variable automatically when you initialize the client, and it keeps your credentials out of version control.
+</Tip>
